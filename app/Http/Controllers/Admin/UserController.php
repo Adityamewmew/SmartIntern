@@ -22,7 +22,7 @@ class UserController extends Controller
     public function __construct(
         protected UserUsecase $usecase
     ) {
-        $this->baseRedirect = 'admin/' . $this->page['route'];
+        $this->baseRedirect = 'admin/'.$this->page['route'];
     }
 
     public function index(Request $request): View|Response
@@ -116,7 +116,7 @@ class UserController extends Controller
             return redirect()
                 ->back()
                 ->withInput()
-                ->with('success', ResponseConst::DEFAULT_ERROR_MESSAGE);
+                ->with('error', $process['message'] ?? ResponseConst::DEFAULT_ERROR_MESSAGE);
         }
     }
 
@@ -142,7 +142,7 @@ class UserController extends Controller
         if ($resetProcess['success']) {
             return redirect()
                 ->route('admin.users.index')
-                ->with('success', 'Password berhasil direset menjadi default');
+                ->with('success', $resetProcess['message'] ?? 'Password berhasil direset');
         } else {
             return redirect()
                 ->route('admin.users.index')

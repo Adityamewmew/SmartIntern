@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\URL;
+use App\Usecase\Admin\SidebarMenuUsecase;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Blaze\Blaze;
 
@@ -25,10 +27,23 @@ class AppServiceProvider extends ServiceProvider
             resource_path('views/components'),
             fold: true,
         );
+
+        View::composer('_admin._layout.sidebar.*', function ($view) {
+            if (! Auth::check()) {
+                return;
+            }
+
+            $usecase = app(SidebarMenuUsecase::class);
+            $accessType = Auth::user()->access_type;
+            $groups = $usecase->getGroupKeys();
+            $sidebarMenus = [];
+
+            foreach ($groups as $group) {
+                $result = $usecase->getMenusForSidebar($accessType, $group);
+                $sidebarMenus[$group] = $result['data'] ?? [];
+            }
+
+            $view->with('sidebarMenus', $sidebarMenus);
+        });
     }
 }
-
-        // if (! $this->app->environment('local')) {
-        //     URL::forceScheme('https');
-        //     $this->app['request']->server->set('HTTPS', 'on');
-        // }

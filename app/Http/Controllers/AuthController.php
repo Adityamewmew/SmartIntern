@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\UserConst;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,19 +16,29 @@ class AuthController extends Controller
     public function doLogin(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required'],
             'password' => ['required'],
         ]);
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-            return redirect()->intended(route('admin.dashboard'));
+            return $this->redirectByRole(Auth::user());
         }
 
         return back()->withErrors([
             'login_error' => 'Email atau Password tidak sesuai, periksa kembali',
         ])->onlyInput('email');
+    }
+
+    private function redirectByRole($user)
+    {
+        switch ($user->access_type) {
+            case UserConst::SUPERADMIN:
+                return redirect()->route('admin.dashboard');
+            default:
+                return redirect()->intended(route('admin.dashboard'));
+        }
     }
 
     public function logout(Request $request)

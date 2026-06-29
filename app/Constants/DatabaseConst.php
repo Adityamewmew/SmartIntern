@@ -6,9 +6,28 @@ class DatabaseConst
 {
     const SQL_READ = 'mysql_read';
 
-    const USER = 'users';
+    public static function USER(): string
+    {
+        return self::DB_CORE().'.users';
+    }
 
-    const TASK_CATEGORY = 'task_categories';
+    public static function SIDEBAR_MENU(): string
+    {
+        return self::DB_CORE().'.sidebar_menus';
+    }
 
-    const TASK = 'tasks';
+    public static function SIDEBAR_MENU_ACCESS(): string
+    {
+        return self::DB_CORE().'.sidebar_menu_accesses';
+    }
+
+    public static function SIDEBAR_MENU_GROUP(): string
+    {
+        return self::DB_CORE().'.sidebar_menu_groups';
+    }
+
+    public static function DB_CORE(): string
+    {
+        return config('database.connections.mysql.database', 'default');
+    }
 }

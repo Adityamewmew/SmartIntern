@@ -2,6 +2,10 @@
 
 @section('title', 'Update User')
 
+@php
+    use App\Constants\UserConst;
+@endphp
+
 @section('content')
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white overflow-hidden shadow-lg rounded-2xl dark:bg-neutral-800 border-2 border-gray-100">
@@ -49,14 +53,18 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="access_type" class="block text-sm font-medium mb-2 dark:text-white">Access Type <span
+                    <label for="access_type" class="block text-sm font-medium mb-2 dark:text-white">Hak Akses <span
                             class="text-red-500">*</span></label>
                     <select id="access_type" name="access_type"
                         class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 @error('access_type') border-red-500 @enderror"
                         required>
-                        <option value="">-- Select Access Type --</option>
-                        <option value="1" {{ ($data->access_type ?? '') == '1' ? 'selected' : '' }}>Admin</option>
-                        <option value="2" {{ ($data->access_type ?? '') == '2' ? 'selected' : '' }}>User</option>
+                        <option value="">-- Pilih Hak Akses --</option>
+                        @foreach (UserConst::getAppAccessTypes() as $value => $label)
+                            <option value="{{ $value }}"
+                                {{ (string) ($data->access_type ?? '') === (string) $value ? 'selected' : '' }}>
+                                {{ $label }}
+                            </option>
+                        @endforeach
                     </select>
                     @error('access_type')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>

@@ -12,8 +12,50 @@
 @source '../../node_modules/preline/dist/*.js';
 
 @theme {
-    --font-sans: 'Google Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+
+    /* Semantic Colors (Auto-adapt in dark mode via CSS variables below) */
+    --color-primary: var(--semantic-primary);
+    --color-secondary: var(--semantic-secondary);
+    --color-success: var(--semantic-success);
+    --color-danger: var(--semantic-danger);
+    --color-warning: var(--semantic-warning);
+    --color-info: var(--semantic-info);
+
+    /* Full primary scale mapped from Tailwind Blue */
+    --color-primary-50: var(--color-blue-50);
+    --color-primary-100: var(--color-blue-100);
+    --color-primary-200: var(--color-blue-200);
+    --color-primary-300: var(--color-blue-300);
+    --color-primary-400: var(--color-blue-400);
+    --color-primary-500: var(--color-blue-500);
+    --color-primary-600: var(--color-blue-600);
+    --color-primary-700: var(--color-blue-700);
+    --color-primary-800: var(--color-blue-800);
+    --color-primary-900: var(--color-blue-900);
+    --color-primary-950: var(--color-blue-950);
+}
+
+@layer base {
+    :root {
+        /* Light mode semantic colors */
+        --semantic-primary: var(--color-blue-600);
+        --semantic-secondary: var(--color-slate-600);
+        --semantic-success: var(--color-emerald-600);
+        --semantic-danger: var(--color-red-600);
+        --semantic-warning: var(--color-amber-500);
+        --semantic-info: var(--color-cyan-600);
+    }
+
+    .dark {
+        /* Dark mode semantic colors */
+        --semantic-primary: var(--color-blue-500);
+        --semantic-secondary: var(--color-slate-400);
+        --semantic-success: var(--color-emerald-500);
+        --semantic-danger: var(--color-red-500);
+        --semantic-warning: var(--color-amber-400);
+        --semantic-info: var(--color-cyan-500);
+    }
 }
 
 /* Form Input Styling for Tailwind CSS v4 */

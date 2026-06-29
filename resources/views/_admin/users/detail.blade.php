@@ -2,6 +2,10 @@
 
 @section('title', 'Detail Pengguna')
 
+@php
+    use App\Constants\UserConst;
+@endphp
+
 @section('content')
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white overflow-hidden shadow-lg rounded-2xl dark:bg-neutral-800">
@@ -34,7 +38,7 @@
                         <div class="mt-2">
                             <span
                                 class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200 uppercase">
-                                {{ $data->access_type }}
+                                {{ UserConst::getAccessTypes()[$data->access_type] ?? '-' }}
                             </span>
                         </div>
                     </div>
@@ -46,7 +50,7 @@
                         <p class="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide font-semibold mb-1">
                             Dibuat Pada</p>
                         <p class="text-sm font-medium text-gray-800 dark:text-neutral-200">
-                            {{ \Carbon\Carbon::parse($data->created_at)->format('d F Y, H:i') }}
+                            {{ \Carbon\Carbon::parse($data->created_at)->translatedFormat('d F Y, H:i') }}
                         </p>
                         <p class="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">
                             {{ \Carbon\Carbon::parse($data->created_at)->diffForHumans() }}
@@ -60,7 +64,7 @@
                                 class="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide font-semibold mb-1">
                                 Terakhir Diupdate</p>
                             <p class="text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                {{ \Carbon\Carbon::parse($data->updated_at)->format('d F Y, H:i') }}
+                                {{ \Carbon\Carbon::parse($data->updated_at)->translatedFormat('d F Y, H:i') }}
                             </p>
                             <p class="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">
                                 {{ \Carbon\Carbon::parse($data->updated_at)->diffForHumans() }}

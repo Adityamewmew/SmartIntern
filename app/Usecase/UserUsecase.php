@@ -4,6 +4,7 @@ namespace App\Usecase;
 
 use App\Constants\DatabaseConst;
 use App\Constants\ResponseConst;
+use App\Constants\UserConst;
 use App\Http\Presenter\Response;
 use Exception;
 use Illuminate\Http\Request;
@@ -15,15 +16,14 @@ use Illuminate\Support\Facades\Validator;
 
 class UserUsecase extends Usecase
 {
-    private const DEFAULT_PASSWORD = 'default';
-
     public function __construct() {}
 
     public function getAll(array $filterData = []): array
     {
         try {
-            $data = DB::table(DatabaseConst::USER)
+            $query = DB::table(DatabaseConst::USER())
                 ->whereNull('deleted_at')
+                ->whereIn('access_type', array_keys(UserConst::getAppAccessTypes()))
                 ->when($filterData['keywords'] ?? false, function ($query, $keywords) {
                     return $query->where(function ($q) use ($keywords) {
                         $q->where('name', 'like', '%'.$keywords.'%')
@@ -35,11 +35,13 @@ class UserUsecase extends Usecase
                         return $query->where('access_type', $accessType);
                     }
                 })
-                ->orderBy('created_at', 'desc')
-                ->paginate(20);
+                ->orderBy('created_at', 'desc');
 
-            // Append filter parameters to pagination links
-            if (! empty($filterData)) {
+            $data = empty($filterData['no_pagination'])
+                ? $query->paginate(20)
+                : $query->get();
+
+            if (! empty($filterData) && method_exists($data, 'appends')) {
                 $data->appends($filterData);
             }
 
@@ -64,7 +66,7 @@ class UserUsecase extends Usecase
     public function getByID(int $id): array
     {
         try {
-            $data = DB::table(DatabaseConst::USER)
+            $data = DB::table(DatabaseConst::USER())
                 ->whereNull('deleted_at')
                 ->where('id', $id)
                 ->first();
@@ -89,19 +91,19 @@ class UserUsecase extends Usecase
         $validator = Validator::make($data->all(), [
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
-            'access_type' => 'required',
+            'access_type' => 'required|in:'.implode(',', array_keys(UserConst::getAppAccessTypes())),
         ]);
 
         $validator->validate();
 
         DB::beginTransaction();
         try {
-            DB::table(DatabaseConst::USER)
+            DB::table(DatabaseConst::USER())
                 ->insert([
                     'name' => $data['name'],
                     'email' => $data['email'],
                     'access_type' => $data['access_type'],
-                    'password' => Hash::make(self::DEFAULT_PASSWORD),
+                    'password' => UserConst::DEFAULT_PASSWORD,
                     'is_active' => 1,
                     'created_by' => Auth::user()?->id,
                     'created_at' => now(),
@@ -128,7 +130,8 @@ class UserUsecase extends Usecase
     {
         $validator = Validator::make($data->all(), [
             'name' => 'required|min:4',
-            'email' => 'required|email',
+            'email' => 'required|email|unique:users,email,'.$id,
+            'access_type' => 'required|in:'.implode(',', array_keys(UserConst::getAppAccessTypes())),
         ]);
 
         $validator->validate();
@@ -144,7 +147,7 @@ class UserUsecase extends Usecase
         DB::beginTransaction();
 
         try {
-            DB::table(DatabaseConst::USER)
+            DB::table(DatabaseConst::USER())
                 ->where('id', $id)
                 ->update($update);
 
@@ -172,7 +175,7 @@ class UserUsecase extends Usecase
         DB::beginTransaction();
 
         try {
-            $delete = DB::table(DatabaseConst::USER)
+            $delete = DB::table(DatabaseConst::USER())
                 ->where('id', $id)
                 ->update([
                     'deleted_by' => Auth::user()?->id,
@@ -222,7 +225,7 @@ class UserUsecase extends Usecase
         DB::beginTransaction();
 
         try {
-            $locked = DB::table(DatabaseConst::USER)
+            $locked = DB::table(DatabaseConst::USER())
                 ->where('id', $userID)
                 ->whereNull('deleted_at')
                 ->lockForUpdate()
@@ -234,7 +237,7 @@ class UserUsecase extends Usecase
                 throw new Exception('FAILED LOCKED DATA');
             }
 
-            DB::table(DatabaseConst::USER)
+            DB::table(DatabaseConst::USER())
                 ->where('id', $userID)
                 ->update([
                     'password' => Hash::make($data['password']),
@@ -263,12 +266,12 @@ class UserUsecase extends Usecase
 
     public function resetPassword(int $id): array
     {
-        $defaultPassword = self::DEFAULT_PASSWORD;
+        $defaultPassword = UserConst::DEFAULT_PASSWORD;
 
         DB::beginTransaction();
 
         try {
-            DB::table(DatabaseConst::USER)
+            DB::table(DatabaseConst::USER())
                 ->where('id', $id)
                 ->update([
                     'password' => Hash::make($defaultPassword),
@@ -279,7 +282,7 @@ class UserUsecase extends Usecase
             DB::commit();
 
             return Response::buildSuccess(
-                message: 'Password berhasil direset'
+                message: 'Password berhasil direset ke '.UserConst::DEFAULT_PASSWORD
             );
         } catch (Exception $e) {
             DB::rollback();

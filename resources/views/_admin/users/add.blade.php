@@ -2,6 +2,10 @@
 
 @section('title', 'Tambah Pengguna Baru')
 
+@php
+    use App\Constants\UserConst;
+@endphp
+
 @section('content')
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
@@ -59,12 +63,22 @@
                             class="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 @error('access_type') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
                             required>
                             <option value="">-- Pilih Hak Akses --</option>
-                            <option value="1" {{ old('access_type') == '1' ? 'selected' : '' }}>Admin</option>
-                            <option value="2" {{ old('access_type') == '2' ? 'selected' : '' }}>User</option>
+                            @foreach (UserConst::getAppAccessTypes() as $value => $label)
+                                <option value="{{ $value }}"
+                                    {{ old('access_type') == (string) $value ? 'selected' : '' }}>
+                                    {{ $label }}
+                                </option>
+                            @endforeach
                         </select>
                         @error('access_type')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                         @enderror
+                    </div>
+
+                    <div
+                        class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                        Password default pengguna baru adalah
+                        <span class="font-mono font-semibold">nibs123</span>
                     </div>
                 </div>
 

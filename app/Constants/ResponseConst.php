@@ -22,7 +22,7 @@ class ResponseConst
 
     const SUCCESS_MESSAGE_DELETED = 'Data berhasil dihapus';
 
-    const SUCCESS_MESSAGE_CREATED = 'Data berhasil dibuat';
+    const SUCCESS_MESSAGE_CREATED = 'Data berhasil disimpan';
 
     const ERROR_MESSAGE_NOT_FOUND = 'Data tidak ditemukan';
 

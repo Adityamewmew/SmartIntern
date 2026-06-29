@@ -1,10 +1,10 @@
 # Laravel Starter Kit
 
-A modern Laravel starter kit with admin panel, built with Laravel 12, Bun for build tool, Tailwind CSS 4, and Preline UI components.
+A modern Laravel starter kit with admin panel, built with Laravel, Bun for build tool, Tailwind CSS 4, and Preline UI components.
 
 ## Features
 
-- 🚀 **Laravel 12** - Latest Laravel framework
+- 🚀 **Laravel 13** - Latest Laravel framework
 - 🎨 **Tailwind CSS 4** - Utility-first CSS framework
 - 🧩 **Preline UI** - Beautiful UI components
 - 🌙 **Dark Mode** - Built-in dark mode support
@@ -38,11 +38,21 @@ This will:
 - Install PHP dependencies
 - Create `.env` file from `.env.example`
 - Generate application key
-- Run database migrations
-- Install NPM dependencies
+- Install Bun dependencies
 - Build frontend assets
 
-3. Start the development server
+3. Run migrations in `./db-migrator-with-drizzle`
+First, prepare the `.env` file (copy from `.env.example`).
+Then run:
+```bash
+bun run db:generate
+
+bun run db:migrate
+
+bun run db:seed
+```
+
+3. Start the development server 
 ```bash
 composer dev
 ```
@@ -95,7 +105,7 @@ The admin panel is available at `/admin` route and includes:
 
 | Category | Technology |
 |----------|------------|
-| Backend | Laravel 12, PHP 8.2+ |
+| Backend | Laravel 13, PHP 8.2+ |
 | Frontend | Tailwind CSS 4, Preline UI |
 | Build Tool | Bun |
 | Testing | Pest |
