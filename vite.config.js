@@ -17,6 +17,8 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
+        host: 'smartintern.local',
+        port: 5173,
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },

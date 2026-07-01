@@ -214,12 +214,12 @@
     <script>
         function setDeleteData(id, name) {
             document.getElementById('delete-user-name').textContent = name;
-            document.getElementById('delete-form').action = '{{ url('admin/users/delete') }}/' + id;
+            document.getElementById('delete-form').action = `/admin/users/delete/${id}`;
         }
 
         function setResetData(id, name) {
             document.getElementById('reset-user-name').textContent = name;
-            document.getElementById('reset-form').action = '{{ url('admin/users/reset-password') }}/' + id;
+            document.getElementById('reset-form').action = `/admin/users/reset-password/${id}`;
         }
     </script>
 @endsection

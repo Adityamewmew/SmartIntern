@@ -29,6 +29,13 @@ test('dashboard modul aplikasi only shows starter kit modules', function () {
             'icon' => '_admin._layout.icons.sidebar.data_master',
             'children' => [],
         ],
+        (object) [
+            'id' => 6,
+            'label' => 'Log Book',
+            'route_name' => 'admin.log_book.index',
+            'icon' => '_admin._layout.icons.sidebar.log_book',
+            'children' => [],
+        ],
     ];
 
     $this->mock(SidebarMenuUsecase::class, function ($mock) use ($modules) {
@@ -53,5 +60,6 @@ test('dashboard modul aplikasi only shows starter kit modules', function () {
         ->assertSee('Modul Aplikasi')
         ->assertSee('Pengguna Aplikasi')
         ->assertSee('Manajemen Sidebar')
+        ->assertSee('Log Book')
         ->assertDontSee('Keuangan');
 });

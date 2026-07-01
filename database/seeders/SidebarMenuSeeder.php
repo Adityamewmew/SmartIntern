@@ -69,6 +69,18 @@ class SidebarMenuSeeder extends Seeder
         ]);
         $this->assignAccess($sidebarMgmtId, $superadminOnly, $now);
 
+        $logBookId = DB::table(DatabaseConst::SIDEBAR_MENU())->insertGetId([
+            'label' => 'Log Book',
+            'route_name' => 'admin.log_book.index',
+            'icon' => '_admin._layout.icons.sidebar.log_book',
+            'group' => 'utama',
+            'sort_order' => 60,
+            'is_active' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->assignAccess($logBookId, $superadminOnly, $now);
+
     }
 
     /**

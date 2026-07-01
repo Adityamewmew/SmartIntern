@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\LogBookController;
 use App\Http\Controllers\Admin\SidebarMenuController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
@@ -53,6 +54,16 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [UserController::class, 'changePassword'])->name('change_password');
         Route::post('/change-password', [UserController::class, 'doChangePassword'])->name('do_change_password');
+    });
+
+    Route::middleware('access_type:1')->prefix('log-book')->name('log_book.')->group(function () {
+        Route::get('/', [LogBookController::class, 'index'])->name('index');
+        Route::get('/add', [LogBookController::class, 'add'])->name('add');
+        Route::post('/create', [LogBookController::class, 'doCreate'])->name('create');
+        Route::get('/detail/{id}', [LogBookController::class, 'detail'])->name('detail');
+        Route::get('/update/{id}', [LogBookController::class, 'update'])->name('update');
+        Route::post('/update/{id}', [LogBookController::class, 'doUpdate'])->name('doUpdate');
+        Route::delete('/delete/{id}', [LogBookController::class, 'delete'])->name('delete');
     });
 
 });

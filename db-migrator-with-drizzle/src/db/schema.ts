@@ -1,5 +1,6 @@
 import {
     bigint,
+    date,
     index,
     int,
     longtext,
@@ -157,4 +158,24 @@ export const sidebarMenusTable = mysqlTable('sidebar_menus', {
 }, (t) => [
     index('sidebar_menus_parent_id_index').on(t.parent_id),
     index('sidebar_menus_group_sort_order_index').on(t.group, t.sort_order),
+]);
+
+export const dailyLogsTable = mysqlTable('daily_logs', {
+    id: bigint({ mode: 'number', unsigned: true }).autoincrement().primaryKey(),
+    user_id: bigint({ mode: 'number', unsigned: true }).references((): AnyMySqlColumn => usersTable.id),
+    log_date: date(),
+    title: varchar({ length: 255 }).notNull(),
+    description: text(),
+    // draft|in_progress|done
+    status: varchar({ length: 50 }).notNull().default('draft'),
+    created_by: bigint({ mode: 'number', unsigned: true }),
+    updated_by: bigint({ mode: 'number', unsigned: true }),
+    deleted_by: bigint({ mode: 'number', unsigned: true }),
+    created_at: timestamp(),
+    updated_at: timestamp(),
+    deleted_at: timestamp(),
+}, (t) => [
+    index('daily_logs_user_id_index').on(t.user_id),
+    index('daily_logs_log_date_index').on(t.log_date),
+    index('daily_logs_status_index').on(t.status),
 ]);
