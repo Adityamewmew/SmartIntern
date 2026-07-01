@@ -22,7 +22,6 @@ class DashboardController extends Controller
 
         $allowedRoutes = [
             'admin.users.index',
-            'admin.sidebar_menu.index',
             'admin.log_book.index',
         ];
 

@@ -22,13 +22,7 @@ test('dashboard modul aplikasi only shows starter kit modules', function () {
             'icon' => '_admin._layout.icons.sidebar.user',
             'children' => [],
         ],
-        (object) [
-            'id' => 5,
-            'label' => 'Manajemen Sidebar',
-            'route_name' => 'admin.sidebar_menu.index',
-            'icon' => '_admin._layout.icons.sidebar.data_master',
-            'children' => [],
-        ],
+
         (object) [
             'id' => 6,
             'label' => 'Log Book',
@@ -59,7 +53,6 @@ test('dashboard modul aplikasi only shows starter kit modules', function () {
         ->assertSuccessful()
         ->assertSee('Modul Aplikasi')
         ->assertSee('Pengguna Aplikasi')
-        ->assertSee('Manajemen Sidebar')
         ->assertSee('Log Book')
         ->assertDontSee('Keuangan');
 });

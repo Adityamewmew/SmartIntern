@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\LogBookController;
-use App\Http\Controllers\Admin\SidebarMenuController;
+
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Benchmark;
@@ -37,19 +37,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/reset-password/{id}', [UserController::class, 'resetPassword'])->name('resetPassword');
     });
 
-    Route::middleware('access_type:1')->prefix('sidebar-menu')->name('sidebar_menu.')->group(function () {
-        Route::get('/', [SidebarMenuController::class, 'index'])->name('index');
-        Route::get('/refresh-cache', [SidebarMenuController::class, 'refreshCache'])->name('refresh_cache');
-        Route::get('/add', [SidebarMenuController::class, 'add'])->name('add');
-        Route::post('/create', [SidebarMenuController::class, 'doCreate'])->name('create');
-        Route::get('/update/{id}', [SidebarMenuController::class, 'update'])->name('update');
-        Route::post('/update/{id}', [SidebarMenuController::class, 'doUpdate'])->name('doUpdate');
-        Route::delete('/delete/{id}', [SidebarMenuController::class, 'delete'])->name('delete');
-        Route::get('/{id}/access', [SidebarMenuController::class, 'access'])->name('access');
-        Route::post('/{id}/access', [SidebarMenuController::class, 'doAccess'])->name('doAccess');
-        Route::get('/role-access/{accessType}', [SidebarMenuController::class, 'roleAccess'])->name('role_access');
-        Route::post('/role-access/{accessType}', [SidebarMenuController::class, 'doRoleAccess'])->name('doRoleAccess');
-    });
+
 
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [UserController::class, 'changePassword'])->name('change_password');
