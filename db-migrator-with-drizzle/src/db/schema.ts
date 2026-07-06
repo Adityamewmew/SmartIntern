@@ -166,7 +166,6 @@ export const dailyLogsTable = mysqlTable('daily_logs', {
     log_date: date(),
     title: varchar({ length: 255 }).notNull(),
     description: text(),
-    // draft|in_progress|done
     status: varchar({ length: 50 }).notNull().default('draft'),
     created_by: bigint({ mode: 'number', unsigned: true }),
     updated_by: bigint({ mode: 'number', unsigned: true }),
@@ -178,4 +177,19 @@ export const dailyLogsTable = mysqlTable('daily_logs', {
     index('daily_logs_user_id_index').on(t.user_id),
     index('daily_logs_log_date_index').on(t.log_date),
     index('daily_logs_status_index').on(t.status),
+]);
+
+export const dailyLogImagesTable = mysqlTable('daily_log_images', {
+    id: bigint({ mode: 'number', unsigned: true }).autoincrement().primaryKey(),
+    daily_log_id: bigint({ mode: 'number', unsigned: true }).notNull().references((): AnyMySqlColumn => dailyLogsTable.id),
+    // Storage path relative to public disk, e.g. daily-logs/1/abc.jpg
+    path: varchar({ length: 255 }).notNull(),
+    original_name: varchar({ length: 255 }).notNull(),
+    mime: varchar({ length: 100 }).notNull(),
+    size: int({ unsigned: true }).notNull(),
+    sort_order: smallint({ unsigned: true }).notNull().default(0),
+    created_by: bigint({ mode: 'number', unsigned: true }),
+    created_at: timestamp(),
+}, (t) => [
+    index('daily_log_images_daily_log_id_index').on(t.daily_log_id),
 ]);

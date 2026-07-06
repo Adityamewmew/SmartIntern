@@ -2,18 +2,6 @@
 
 @section('title', $page['title'])
 
-@php
-    use App\Constants\LogBookConst;
-
-    $statusOptions = ['all' => 'Semua Status'] + LogBookConst::getStatusOptions();
-
-    $statusBadgeColor = [
-        LogBookConst::STATUS_DRAFT => 'bg-gray-100 text-gray-700 dark:bg-neutral-700 dark:text-neutral-200',
-        LogBookConst::STATUS_IN_PROGRESS => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-        LogBookConst::STATUS_DONE => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    ];
-@endphp
-
 @section('content')
     <x-admin.page-header :title="'Data ' . $page['title']" subtitle="Catatan aktivitas harian">
         <x-admin.button href="{{ route('admin.log_book.add') }}" class="font-bold">
@@ -24,29 +12,22 @@
 
     <div class="mb-6">
         <form action="{{ route('admin.log_book.index') }}" method="GET" navigate-form
-            class="flex flex-col lg:flex-row lg:items-end gap-3">
-            <div class="w-full lg:w-64">
+            class="flex flex-col sm:flex-row items-center gap-3">
+            <div class="w-full sm:w-64">
                 <x-admin.input :label="null" name="keywords" :value="$keywords ?? ''" placeholder="Judul atau deskripsi" size="sm" />
             </div>
             <div class="w-full sm:w-48">
-                <x-admin.select :label="null" name="status" :options="$statusOptions" :value="$status ?? 'all'" size="sm" class="cursor-pointer" />
+                <x-admin.select :label="null" name="month" :options="$monthOptions" :value="$month ?? ''" size="sm" class="cursor-pointer" placeholder="Semua Bulan" />
             </div>
-            <div class="w-full sm:w-44">
-                <label class="block text-xs text-gray-500 mb-1">Dari Tanggal</label>
-                <input type="date" name="log_date_from" value="{{ $log_date_from ?? '' }}"
-                    class="py-1.5 px-3 text-sm block w-full border-gray-200 rounded-lg focus:border-blue-500 focus:ring-blue-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400" />
-            </div>
-            <div class="w-full sm:w-44">
-                <label class="block text-xs text-gray-500 mb-1">Sampai Tanggal</label>
-                <input type="date" name="log_date_to" value="{{ $log_date_to ?? '' }}"
-                    class="py-1.5 px-3 text-sm block w-full border-gray-200 rounded-lg focus:border-blue-500 focus:ring-blue-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400" />
+            <div class="w-full sm:w-48">
+                <x-admin.select :label="null" name="year" :options="$yearOptions" :value="$year ?? ''" size="sm" class="cursor-pointer" placeholder="Semua Tahun" />
             </div>
             <div class="flex items-center gap-2">
                 <x-admin.button type="submit" size="sm" color="primary">
                     @include('_admin._layout.icons.search')
                     Cari
                 </x-admin.button>
-                @if (!empty($keywords) || ($status ?? 'all') !== 'all' || !empty($log_date_from) || !empty($log_date_to))
+                @if (!empty($keywords) || !empty($month) || !empty($year))
                     <x-admin.button href="{{ route('admin.log_book.index') }}" size="sm" color="outline-secondary">
                         @include('_admin._layout.icons.reset')
                         Reset
@@ -62,7 +43,6 @@
                 <tr>
                     <x-admin.table.th>Tanggal</x-admin.table.th>
                     <x-admin.table.th>Judul</x-admin.table.th>
-                    <x-admin.table.th>Status</x-admin.table.th>
                     <x-admin.table.th>Deskripsi</x-admin.table.th>
                     <x-admin.table.th align="end"></x-admin.table.th>
                 </tr>
@@ -77,11 +57,6 @@
                         </x-admin.table.td>
                         <x-admin.table.td>
                             <span class="text-sm font-semibold text-gray-800 dark:text-neutral-200">{{ $d->title }}</span>
-                        </x-admin.table.td>
-                        <x-admin.table.td>
-                            <span class="inline-flex items-center py-1 px-2.5 rounded-full text-xs font-medium {{ $statusBadgeColor[$d->status] ?? '' }}">
-                                {{ LogBookConst::getStatusOptions()[$d->status] ?? ucfirst($d->status) }}
-                            </span>
                         </x-admin.table.td>
                         <x-admin.table.td>
                             <span class="text-sm text-gray-500 dark:text-neutral-400 line-clamp-1">
@@ -109,7 +84,7 @@
                     </x-admin.table.tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-neutral-500">
+                        <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-neutral-500">
                             <x-admin.empty-state />
                         </td>
                     </tr>
@@ -126,7 +101,7 @@
     </x-admin.table.wrapper>
 
     <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="hs-overlay hidden size-full fixed top-0 start-0 z-[80] overflow-x-hidden overflow-y-auto"
+    <div id="delete-modal" class="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto"
         role="dialog" tabindex="-1" aria-labelledby="delete-modal-label">
         <div
             class="hs-overlay-open:mt-7 hs-overlay-open:opacity-100 hs-overlay-open:duration-500 mt-0 opacity-0 ease-out transition-all sm:max-w-lg sm:w-full m-3 sm:mx-auto">

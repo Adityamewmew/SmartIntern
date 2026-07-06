@@ -3,24 +3,24 @@
 namespace App\Usecase;
 
 use App\Constants\DatabaseConst;
-use App\Constants\LogBookConst;
 use App\Constants\ResponseConst;
 use App\Http\Presenter\Response;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class LogBookUsecase extends Usecase
 {
-    public function __construct() {}
-
     /**
      * Get all daily logs with pagination and filters.
      *
-     * @param  array{keywords?: string, log_date_from?: string, log_date_to?: string, status?: string, no_pagination?: bool}  $filterData
+     * @param  array{keywords?: string, month?: string, year?: string, no_pagination?: bool}  $filterData
      */
     public function getAll(array $filterData = []): array
     {
@@ -33,16 +33,11 @@ class LogBookUsecase extends Usecase
                             ->orWhere('description', 'like', '%'.$keywords.'%');
                     });
                 })
-                ->when($filterData['status'] ?? false, function ($query, $status) {
-                    if ($status !== 'all') {
-                        return $query->where('status', $status);
-                    }
+                ->when($filterData['month'] ?? false, function ($query, $month) {
+                    return $query->whereMonth('log_date', $month);
                 })
-                ->when($filterData['log_date_from'] ?? false, function ($query, $dateFrom) {
-                    return $query->where('log_date', '>=', $dateFrom);
-                })
-                ->when($filterData['log_date_to'] ?? false, function ($query, $dateTo) {
-                    return $query->where('log_date', '<=', $dateTo);
+                ->when($filterData['year'] ?? false, function ($query, $year) {
+                    return $query->whereYear('log_date', $year);
                 })
                 ->orderBy('log_date', 'desc')
                 ->orderBy('created_at', 'desc');
@@ -73,6 +68,32 @@ class LogBookUsecase extends Usecase
         }
     }
 
+    /**
+     * Get year options for filter: from oldest log year to current year.
+     *
+     * @return array<int, int>
+     */
+    public function getYearOptions(): array
+    {
+        $currentYear = (int) Carbon::now()->format('Y');
+
+        $minYear = (int) DB::table(DatabaseConst::DAILY_LOG())
+            ->selectRaw('MIN(YEAR(log_date)) as min_year')
+            ->value('min_year');
+
+        if ($minYear < 1) {
+            $minYear = $currentYear;
+        }
+
+        $years = [];
+
+        for ($y = $currentYear; $y >= $minYear; $y--) {
+            $years[$y] = $y;
+        }
+
+        return $years;
+    }
+
     public function getByID(int $id): array
     {
         try {
@@ -81,8 +102,16 @@ class LogBookUsecase extends Usecase
                 ->where('id', $id)
                 ->first();
 
+            $images = DB::table(DatabaseConst::DAILY_LOG_IMAGE())
+                ->where('daily_log_id', $id)
+                ->orderBy('sort_order')
+                ->get();
+
             return Response::buildSuccess(
-                data: collect($data)->toArray()
+                data: [
+                    ...collect($data)->toArray(),
+                    'images' => $images,
+                ]
             );
         } catch (Exception $e) {
             Log::error(
@@ -102,24 +131,26 @@ class LogBookUsecase extends Usecase
             'log_date' => 'required|date',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:'.implode(',', array_keys(LogBookConst::getStatusOptions())),
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $validator->validate();
 
         DB::beginTransaction();
         try {
-            DB::table(DatabaseConst::DAILY_LOG())
-                ->insert([
+            $logId = DB::table(DatabaseConst::DAILY_LOG())
+                ->insertGetId([
                     'user_id' => Auth::user()?->id,
                     'log_date' => $data['log_date'],
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
-                    'status' => $data['status'],
                     'created_by' => Auth::user()?->id,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+            $this->storeImages($data, $logId);
 
             DB::commit();
 
@@ -144,7 +175,8 @@ class LogBookUsecase extends Usecase
             'log_date' => 'required|date',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'required|in:'.implode(',', array_keys(LogBookConst::getStatusOptions())),
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $validator->validate();
@@ -157,10 +189,11 @@ class LogBookUsecase extends Usecase
                     'log_date' => $data['log_date'],
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
-                    'status' => $data['status'],
                     'updated_by' => Auth::user()?->id,
                     'updated_at' => now(),
                 ]);
+
+            $this->storeImages($data, $id);
 
             DB::commit();
 
@@ -195,6 +228,83 @@ class LogBookUsecase extends Usecase
             if (! $delete) {
                 DB::rollback();
                 throw new Exception('FAILED DELETE DATA');
+            }
+
+            DB::commit();
+
+            return Response::buildSuccess(
+                message: ResponseConst::SUCCESS_MESSAGE_DELETED
+            );
+        } catch (Exception $e) {
+            DB::rollback();
+
+            Log::error(
+                message: $e->getMessage(),
+                context: [
+                    'method' => __METHOD__,
+                ]
+            );
+
+            return Response::buildErrorService($e->getMessage());
+        }
+    }
+
+    /**
+     * Store uploaded images for a daily log.
+     */
+    protected function storeImages(Request $data, int $logId): void
+    {
+        if (! $data->hasFile('images')) {
+            return;
+        }
+
+        $nextSort = (int) DB::table(DatabaseConst::DAILY_LOG_IMAGE())
+            ->where('daily_log_id', $logId)
+            ->max('sort_order') ?? 0;
+
+        foreach ($data->file('images') as $file) {
+            if (! $file->isValid()) {
+                continue;
+            }
+
+            $nextSort++;
+            $filename = $logId.'/'.Str::random(20).'.'.$file->getClientOriginalExtension();
+
+            Storage::disk('public')->putFileAs('daily-logs', $file, $filename);
+
+            DB::table(DatabaseConst::DAILY_LOG_IMAGE())->insert([
+                'daily_log_id' => $logId,
+                'path' => 'daily-logs/'.$filename,
+                'original_name' => $file->getClientOriginalName(),
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'sort_order' => $nextSort,
+                'created_by' => Auth::user()?->id,
+                'created_at' => now(),
+            ]);
+        }
+    }
+
+    public function deleteImage(int $id): array
+    {
+        DB::beginTransaction();
+        try {
+            $image = DB::table(DatabaseConst::DAILY_LOG_IMAGE())
+                ->where('id', $id)
+                ->first();
+
+            if (! $image) {
+                DB::rollback();
+
+                return Response::buildErrorNotFound(ResponseConst::DEFAULT_ERROR_MESSAGE);
+            }
+
+            DB::table(DatabaseConst::DAILY_LOG_IMAGE())
+                ->where('id', $id)
+                ->delete();
+
+            if ($image->path) {
+                Storage::disk('public')->delete($image->path);
             }
 
             DB::commit();

@@ -2,12 +2,8 @@
 
 @section('title', 'Edit Log Book')
 
-@php
-    use App\Constants\LogBookConst;
-@endphp
-
 @section('content')
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="max-w-5xl">
         <div class="bg-white overflow-hidden shadow-lg rounded-2xl dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-neutral-700 flex items-center">
                 <a href="{{ route('admin.log_book.index') }}"
@@ -26,83 +22,282 @@
                 </div>
             </div>
 
-            <form id="update-form" class="p-6 space-y-4" navigate-form action="{{ route('admin.log_book.doUpdate', $data->id) }}"
-                method="POST">
+            <form id="update-form" class="p-6" navigate-form action="{{ route('admin.log_book.doUpdate', $data->id) }}"
+                method="POST" enctype="multipart/form-data">
                 @csrf
 
-                <div class="space-y-2">
-                    <label for="log_date" class="text-sm text-gray-600 dark:text-neutral-200 pb-1">
-                        Tanggal <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" id="log_date" name="log_date" value="{{ old('log_date', $data->log_date) }}"
-                        class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 @error('log_date') border-red-500 @enderror"
-                        required>
-                    @error('log_date')
-                        <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
+                <div class="space-y-4">
+                    <x-admin.input type="text" id="log_date" name="log_date" label="Tanggal" class="datepicker"
+                        value="{{ old('log_date', $data->log_date) }}"
+                        placeholder="Pilih tanggal" required autocomplete="off"
+                        error="{{ $errors->first('log_date') }}" />
+
+                    <x-admin.input type="text" id="title" name="title" label="Judul"
+                        value="{{ old('title', $data->title) }}"
+                        placeholder="Contoh: Meeting dengan tim" required
+                        error="{{ $errors->first('title') }}" />
+
+                    <div>
+                        <label for="description" class="block text-sm font-medium mb-2 dark:text-white">Deskripsi</label>
+                        <textarea id="description" name="description" rows="4"
+                            class="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 placeholder-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 @error('description') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                            placeholder="Rincian aktivitas harian">{{ old('description', $data->description) }}</textarea>
+                        @error('description')
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
 
-                <div class="space-y-2">
-                    <label for="title" class="text-sm text-gray-600 dark:text-neutral-200 pb-1">
-                        Judul <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="title" name="title" value="{{ old('title', $data->title) }}"
-                        class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 placeholder-gray-400 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 @error('title') border-red-500 @enderror"
-                        placeholder="Contoh: Meeting dengan tim" required>
-                    @error('title')
-                        <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="space-y-2">
-                    <label for="status" class="text-sm text-gray-600 dark:text-neutral-200 pb-1">
-                        Status <span class="text-red-500">*</span>
-                    </label>
-                    <select id="status" name="status"
-                        class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 @error('status') border-red-500 @enderror"
-                        required>
-                        <option value="">-- Pilih Status --</option>
-                        @foreach (LogBookConst::getStatusOptions() as $value => $label)
-                            <option value="{{ $value }}" {{ old('status', $data->status) == (string) $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2 dark:text-white">Gambar Saat Ini</label>
+                    <div id="existing-image-list" class="flex flex-wrap gap-3 mt-1">
+                        @foreach ($images as $img)
+                            <div class="relative group" data-image-item="{{ $img->id }}">
+                                <img src="{{ \Illuminate\Support\Facades\Storage::url($img->path) }}"
+                                    alt="{{ $img->original_name }}"
+                                    class="size-24 object-cover rounded-lg border border-gray-200 dark:border-neutral-700">
+                                <button type="button"
+                                    title="Hapus gambar"
+                                    data-hs-overlay="#delete-image-modal"
+                                    onclick="setDeleteImageData({{ $img->id }})"
+                                    class="absolute -top-2 -end-2 inline-flex items-center justify-center size-6 text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 focus:outline-none cursor-pointer">
+                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </div>
                         @endforeach
-                    </select>
-                    @error('status')
-                        <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                    </div>
+                    <p id="empty-image-state"
+                        class="{{ count($images) ? 'hidden' : '' }} mt-2 text-sm text-gray-500 dark:text-neutral-400">
+                        Belum ada gambar.
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <label for="images" class="block text-sm font-medium mb-2 dark:text-white">Tambah Gambar</label>
+                    <div
+                        class="relative rounded-2xl border border-dashed border-gray-300 bg-gray-50 transition hover:border-blue-400 hover:bg-blue-50/40 dark:border-neutral-700 dark:bg-neutral-900/40 dark:hover:border-blue-500 dark:hover:bg-blue-900/10 @error('images') border-red-500 @enderror">
+                        <input type="file" id="images" name="images[]" multiple accept="image/png,image/jpeg"
+                            class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0">
+                        <div class="flex flex-col items-center justify-center px-6 py-8 text-center">
+                            <svg class="mb-3 size-8 text-gray-400 dark:text-neutral-500" xmlns="http://www.w3.org/2000/svg"
+                                width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" x2="12" y1="3" y2="15" />
+                            </svg>
+                            <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">Klik untuk pilih foto atau seret ke sini</span>
+                            <span id="images-helper-text" class="mt-1 text-xs text-gray-500 dark:text-neutral-400">Belum ada foto dipilih</span>
+                        </div>
+                    </div>
+                    <div id="images-preview" class="mt-3 hidden grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5"></div>
+                    <p class="text-xs text-gray-500 dark:text-neutral-400 mt-1">Bisa pilih lebih dari 1 foto. Maksimal 10 foto, masing-masing 2MB.</p>
+                    @error('images')
+                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                    @enderror
+                    @error('images.*')
+                        <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
-                <div class="space-y-2">
-                    <label for="description" class="text-sm text-gray-600 dark:text-neutral-200 pb-1">
-                        Deskripsi
-                    </label>
-                    <textarea id="description" name="description" rows="4"
-                        class="py-2.5 sm:py-3 px-4 block w-full border-gray-200 rounded-lg sm:text-sm focus:border-blue-500 focus:ring-blue-500 placeholder-gray-400 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 @error('description') border-red-500 @enderror"
-                        placeholder="Rincian aktivitas harian">{{ old('description', $data->description) }}</textarea>
-                    @error('description')
-                        <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="flex justify-start gap-x-2 mt-2">
-                    <a navigate href="{{ route('admin.log_book.index') }}"
-                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                <div class="mt-4 flex justify-start gap-x-2">
+                    <x-admin.button href="{{ route('admin.log_book.index') }}" color="outline-secondary">
                         Batal
-                    </a>
-                    <button type="submit"
-                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+                    </x-admin.button>
+                    <x-admin.button type="submit" color="primary">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                            <polyline points="17 21 17 13 7 13 7 21" />
-                            <polyline points="7 3 7 8 15 8" />
+                            <path d="M5 12h14" />
+                            <path d="M12 5v14" />
                         </svg>
                         Simpan Perubahan
-                    </button>
+                    </x-admin.button>
                 </div>
             </form>
         </div>
     </div>
+
+    <form id="delete-image-form" method="POST" class="hidden">
+        @csrf
+        @method('DELETE')
+    </form>
+
+    <x-admin.modal
+        id="delete-image-modal"
+        title="Hapus Gambar">
+        <p class="text-gray-500 dark:text-neutral-400">
+            Apakah Anda yakin ingin menghapus gambar ini?<br>
+            Tindakan ini tidak dapat dibatalkan.
+        </p>
+
+        <x-slot:footer>
+            <button type="button"
+                class="py-2.5 px-4 inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-hidden focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800 transition-all cursor-pointer"
+                data-hs-overlay="#delete-image-modal">
+                Batal
+            </button>
+            <x-admin.button type="submit" color="danger" class="font-bold py-2.5 px-6 rounded-xl"
+                form="delete-image-form">
+                Ya, Hapus
+            </x-admin.button>
+        </x-slot:footer>
+    </x-admin.modal>
+
+    <script>
+        function setDeleteImageData(id) {
+            const deleteUrlTemplate = @json(route('admin.log_book.delete_image', ['imageId' => '__IMAGE_ID__']));
+            document.getElementById('delete-image-form').action = deleteUrlTemplate.replace('__IMAGE_ID__', id);
+            document.getElementById('delete-image-form').dataset.imageId = id;
+        }
+
+        function closeDeleteImageModal() {
+            const modalElement = document.getElementById('delete-image-modal');
+
+            if (!modalElement) {
+                return;
+            }
+
+            if (window.HSOverlay) {
+                try {
+                    if (typeof window.HSOverlay.close === 'function') {
+                        window.HSOverlay.close(modalElement);
+                    } else {
+                        const instance = window.HSOverlay.getInstance(modalElement);
+                        if (instance && typeof instance.close === 'function') {
+                            instance.close();
+                        }
+                    }
+                } catch (error) {
+                }
+            }
+
+            const closeButton = modalElement.querySelector('[aria-label="Close"]');
+            if (closeButton) {
+                closeButton.click();
+            }
+
+            modalElement.classList.remove('open', 'opened');
+            modalElement.setAttribute('aria-hidden', 'true');
+            document.querySelectorAll('.hs-overlay-backdrop').forEach(function(backdrop) {
+                backdrop.remove();
+            });
+            document.body.classList.remove('overflow-hidden');
+            document.body.style.removeProperty('overflow');
+        }
+
+        document.getElementById('delete-image-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const form = event.currentTarget;
+            const imageId = form.dataset.imageId;
+
+            if (!imageId) {
+                return;
+            }
+
+            const submitButton = document.querySelector('[form="delete-image-form"]');
+            const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = 'Menghapus...';
+            }
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: new FormData(form),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Gagal menghapus gambar.');
+                }
+
+                const imageItem = document.querySelector('[data-image-item="' + imageId + '"]');
+                if (imageItem) {
+                    imageItem.remove();
+                }
+
+                const imageList = document.getElementById('existing-image-list');
+                const emptyState = document.getElementById('empty-image-state');
+                if (imageList && !imageList.querySelector('[data-image-item]') && emptyState) {
+                    emptyState.classList.remove('hidden');
+                }
+
+                closeDeleteImageModal();
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonHtml;
+                }
+            }
+        });
+
+        const updateImagesInput = document.getElementById('images');
+        const updateImagesPreview = document.getElementById('images-preview');
+        const updateImagesHelperText = document.getElementById('images-helper-text');
+        
+        let accumulatedUpdateFiles = [];
+
+        function renderUpdatePreview() {
+            const dt = new DataTransfer();
+            accumulatedUpdateFiles.forEach(file => dt.items.add(file));
+            updateImagesInput.files = dt.files;
+
+            updateImagesPreview.innerHTML = '';
+
+            if (!accumulatedUpdateFiles.length) {
+                updateImagesPreview.classList.add('hidden');
+                updateImagesHelperText.textContent = 'Belum ada foto dipilih';
+                return;
+            }
+
+            updateImagesHelperText.textContent = accumulatedUpdateFiles.length + ' foto dipilih';
+            updateImagesPreview.classList.remove('hidden');
+
+            accumulatedUpdateFiles.forEach(function(file, index) {
+                const reader = new FileReader();
+
+                reader.onload = function(loadEvent) {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-neutral-700 dark:bg-neutral-800';
+                    previewItem.innerHTML =
+                        '<img src="' + loadEvent.target.result + '" alt="' + file.name + '" class="h-28 w-full object-cover">' +
+                        '<div class="px-3 py-2 text-xs text-gray-500 dark:text-neutral-400 truncate">' + file.name + '</div>' +
+                        '<button type="button" class="absolute top-1 end-1 inline-flex items-center justify-center size-6 text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 focus:outline-none cursor-pointer" onclick="removeAddedUpdateImage(' + index + ')" title="Hapus gambar dari antrean">' +
+                        '<svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>';
+                    updateImagesPreview.appendChild(previewItem);
+                };
+
+                reader.readAsDataURL(file);
+            });
+        }
+
+        window.removeAddedUpdateImage = function(index) {
+            accumulatedUpdateFiles.splice(index, 1);
+            renderUpdatePreview();
+        };
+
+        if (updateImagesInput && updateImagesPreview && updateImagesHelperText) {
+            updateImagesInput.addEventListener('change', function(event) {
+                const newFiles = Array.from(event.target.files || []);
+                
+                newFiles.forEach(file => {
+                    const exists = accumulatedUpdateFiles.some(f => f.name === file.name && f.size === file.size);
+                    if (!exists) {
+                        accumulatedUpdateFiles.push(file);
+                    }
+                });
+
+                renderUpdatePreview();
+            });
+        }
+    </script>
 @endsection

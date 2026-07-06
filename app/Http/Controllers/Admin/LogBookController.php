@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Constants\LogBookConst;
 use App\Constants\ResponseConst;
 use App\Http\Controllers\Controller;
 use App\Usecase\LogBookUsecase;
@@ -29,9 +30,8 @@ class LogBookController extends Controller
     {
         $filters = [
             'keywords' => $request->get('keywords'),
-            'status' => $request->get('status'),
-            'log_date_from' => $request->get('log_date_from'),
-            'log_date_to' => $request->get('log_date_to'),
+            'month' => $request->get('month'),
+            'year' => $request->get('year'),
         ];
 
         $data = $this->usecase->getAll($filters);
@@ -41,9 +41,10 @@ class LogBookController extends Controller
             'data' => $data,
             'page' => $this->page,
             'keywords' => $request->get('keywords'),
-            'status' => $request->get('status'),
-            'log_date_from' => $request->get('log_date_from'),
-            'log_date_to' => $request->get('log_date_to'),
+            'month' => $request->get('month'),
+            'year' => $request->get('year'),
+            'monthOptions' => LogBookConst::getMonthOptions(),
+            'yearOptions' => $this->usecase->getYearOptions(),
         ]);
     }
 
@@ -81,10 +82,12 @@ class LogBookController extends Controller
                 ->intended($this->baseRedirect)
                 ->with('error', ResponseConst::DEFAULT_ERROR_MESSAGE);
         }
-        $data = $data['data'] ?? [];
+        $images = $data['data']['images'] ?? [];
+        unset($data['data']['images']);
 
         return view('_admin.log-book.detail', [
-            'data' => (object) $data,
+            'data' => (object) $data['data'],
+            'images' => $images,
             'page' => $this->page,
         ]);
     }
@@ -98,10 +101,12 @@ class LogBookController extends Controller
                 ->intended($this->baseRedirect)
                 ->with('error', ResponseConst::DEFAULT_ERROR_MESSAGE);
         }
-        $data = $data['data'] ?? [];
+        $images = $data['data']['images'] ?? [];
+        unset($data['data']['images']);
 
         return view('_admin.log-book.update', [
-            'data' => (object) $data,
+            'data' => (object) $data['data'],
+            'images' => $images,
             'logId' => $id,
             'page' => $this->page,
         ]);
@@ -137,6 +142,21 @@ class LogBookController extends Controller
         } else {
             return redirect()
                 ->route('admin.log_book.index')
+                ->with('error', $process['message'] ?? ResponseConst::DEFAULT_ERROR_MESSAGE);
+        }
+    }
+
+    public function deleteImage(int $imageId): RedirectResponse
+    {
+        $process = $this->usecase->deleteImage(id: $imageId);
+
+        if ($process['success']) {
+            return redirect()
+                ->back()
+                ->with('success', ResponseConst::SUCCESS_MESSAGE_DELETED);
+        } else {
+            return redirect()
+                ->back()
                 ->with('error', $process['message'] ?? ResponseConst::DEFAULT_ERROR_MESSAGE);
         }
     }

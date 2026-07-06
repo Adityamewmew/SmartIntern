@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\LogBookController;
-
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Benchmark;
@@ -37,8 +36,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/reset-password/{id}', [UserController::class, 'resetPassword'])->name('resetPassword');
     });
 
-
-
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/change-password', [UserController::class, 'changePassword'])->name('change_password');
         Route::post('/change-password', [UserController::class, 'doChangePassword'])->name('do_change_password');
@@ -52,6 +49,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/update/{id}', [LogBookController::class, 'update'])->name('update');
         Route::post('/update/{id}', [LogBookController::class, 'doUpdate'])->name('doUpdate');
         Route::delete('/delete/{id}', [LogBookController::class, 'delete'])->name('delete');
+        Route::delete('/image/{imageId}', [LogBookController::class, 'deleteImage'])->name('delete_image');
     });
 
 });

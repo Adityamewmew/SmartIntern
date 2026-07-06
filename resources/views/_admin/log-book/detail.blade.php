@@ -2,15 +2,6 @@
 
 @section('title', 'Detail Log Book')
 
-@php
-    use App\Constants\LogBookConst;
-
-    $statusBadgeColor = [
-        LogBookConst::STATUS_DRAFT => 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200',
-        LogBookConst::STATUS_IN_PROGRESS => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-        LogBookConst::STATUS_DONE => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    ];
-@endphp
 
 @section('content')
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -38,9 +29,6 @@
                     <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-neutral-400">
                         <span>
                             {{ $data->log_date ? \Carbon\Carbon::parse($data->log_date)->translatedFormat('d F Y') : '-' }}
-                        </span>
-                        <span class="inline-flex items-center gap-x-1.5 py-1 px-3 rounded-full text-xs font-medium {{ $statusBadgeColor[$data->status] ?? '' }}">
-                            {{ LogBookConst::getStatusOptions()[$data->status] ?? ucfirst($data->status) }}
                         </span>
                     </div>
                 </div>
@@ -82,12 +70,29 @@
                     @endif
                 </div>
 
+                @if (!empty($images))
+                    <div class="mb-6">
+                        <p class="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide font-semibold mb-2">
+                            Gambar
+                        </p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            @foreach ($images as $img)
+                                <a href="{{ \Illuminate\Support\Facades\Storage::url($img->path) }}"
+                                    target="_blank" class="block">
+                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($img->path) }}"
+                                        alt="{{ $img->original_name }}"
+                                        class="w-full aspect-square object-cover rounded-xl border border-gray-200 dark:border-neutral-700 hover:opacity-80 transition">
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="mt-6 flex justify-start gap-x-2">
-                    <a navigate href="{{ route('admin.log_book.update', $data->id) }}"
-                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+                    <x-admin.button href="{{ route('admin.log_book.update', $data->id) }}" color="primary">
                         @include('_admin._layout.icons.pencil')
                         Edit Data
-                    </a>
+                    </x-admin.button>
                 </div>
             </div>
         </div>

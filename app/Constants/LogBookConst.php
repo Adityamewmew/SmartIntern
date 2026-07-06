@@ -2,25 +2,23 @@
 
 namespace App\Constants;
 
+use Carbon\Carbon;
+
 class LogBookConst
 {
-    const STATUS_DRAFT = 'draft';
-
-    const STATUS_IN_PROGRESS = 'in_progress';
-
-    const STATUS_DONE = 'done';
-
     /**
-     * Status opsi untuk filter dan form log book.
+     * Opsi bulan (1-12) untuk filter index.
      *
-     * @return array<string, string>
+     * @return array<int, string>
      */
-    public static function getStatusOptions(): array
+    public static function getMonthOptions(): array
     {
-        return [
-            self::STATUS_DRAFT => 'Draft',
-            self::STATUS_IN_PROGRESS => 'Berjalan',
-            self::STATUS_DONE => 'Selesai',
-        ];
+        $months = [];
+
+        for ($m = 1; $m <= 12; $m++) {
+            $months[$m] = Carbon::create(null, $m)->translatedFormat('F');
+        }
+
+        return $months;
     }
 }

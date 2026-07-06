@@ -15,6 +15,13 @@
       "when": 1782892805452,
       "tag": "0001_daily_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1783067080729,
+      "tag": "0002_daily_log_images",
+      "breakpoints": true
     }
   ]
 }

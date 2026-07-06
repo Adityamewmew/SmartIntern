@@ -31,6 +31,11 @@ class DatabaseConst
         return self::DB_CORE().'.daily_logs';
     }
 
+    public static function DAILY_LOG_IMAGE(): string
+    {
+        return self::DB_CORE().'.daily_log_images';
+    }
+
     public static function DB_CORE(): string
     {
         return config('database.connections.mysql.database', 'default');
