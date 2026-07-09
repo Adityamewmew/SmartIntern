@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\ImageManager;
 
 class LogBookUsecase extends Usecase
 {
@@ -56,6 +59,45 @@ class LogBookUsecase extends Usecase
                 ],
                 ResponseConst::HTTP_SUCCESS
             );
+        } catch (Exception $e) {
+            Log::error(
+                message: $e->getMessage(),
+                context: [
+                    'method' => __METHOD__,
+                ]
+            );
+
+            return Response::buildErrorService($e->getMessage());
+        }
+    }
+
+    /**
+     * Get data for export including images without pagination
+     */
+    public function getExportData(array $filterData = []): array
+    {
+        try {
+            $filterData['no_pagination'] = true;
+            $logsResponse = $this->getAll($filterData);
+
+            if (! $logsResponse['success']) {
+                return $logsResponse;
+            }
+
+            $logs = $logsResponse['data']['list'];
+            $logIds = collect($logs)->pluck('id')->toArray();
+
+            $images = DB::table(DatabaseConst::DAILY_LOG_IMAGE())
+                ->whereIn('daily_log_id', $logIds)
+                ->orderBy('sort_order')
+                ->get()
+                ->groupBy('daily_log_id');
+
+            foreach ($logs as $log) {
+                $log->images = $images->get($log->id) ?? collect([]);
+            }
+
+            return Response::buildSuccess(['list' => $logs]);
         } catch (Exception $e) {
             Log::error(
                 message: $e->getMessage(),
@@ -262,22 +304,30 @@ class LogBookUsecase extends Usecase
             ->where('daily_log_id', $logId)
             ->max('sort_order') ?? 0;
 
+        $manager = new ImageManager(new Driver);
+
         foreach ($data->file('images') as $file) {
             if (! $file->isValid()) {
                 continue;
             }
 
             $nextSort++;
-            $filename = $logId.'/'.Str::random(20).'.'.$file->getClientOriginalExtension();
+            $filename = $logId.'/'.Str::random(20).'.jpg';
+            $path = 'daily-logs/'.$filename;
 
-            Storage::disk('public')->putFileAs('daily-logs', $file, $filename);
+            // Compress and resize image
+            $image = $manager->decodePath($file->getPathname());
+            $image->scale(width: 700);
+
+            $encoded = $image->encode(new JpegEncoder(quality: 80));
+            Storage::disk('public')->put($path, (string) $encoded);
 
             DB::table(DatabaseConst::DAILY_LOG_IMAGE())->insert([
                 'daily_log_id' => $logId,
-                'path' => 'daily-logs/'.$filename,
-                'original_name' => $file->getClientOriginalName(),
-                'mime' => $file->getMimeType(),
-                'size' => $file->getSize(),
+                'path' => $path,
+                'original_name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME).'.jpg',
+                'mime' => 'image/jpeg',
+                'size' => strlen((string) $encoded),
                 'sort_order' => $nextSort,
                 'created_by' => Auth::user()?->id,
                 'created_at' => now(),

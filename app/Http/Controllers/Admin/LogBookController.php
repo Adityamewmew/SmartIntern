@@ -6,10 +6,14 @@ use App\Constants\LogBookConst;
 use App\Constants\ResponseConst;
 use App\Http\Controllers\Controller;
 use App\Usecase\LogBookUsecase;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class LogBookController extends Controller
 {
@@ -28,10 +32,19 @@ class LogBookController extends Controller
 
     public function index(Request $request): View|Response
     {
+        $currentMonth = date('n'); // 1-12
+        $currentYear = date('Y');
+
+        // Default to current month and year if not specified,
+        // unless they explicitly want to view all (e.g. by passing empty month/year in query param, though usually default is current month)
+        // Let's set default if it's completely missing from request.
+        $month = $request->has('month') ? $request->get('month') : $currentMonth;
+        $year = $request->has('year') ? $request->get('year') : $currentYear;
+
         $filters = [
             'keywords' => $request->get('keywords'),
-            'month' => $request->get('month'),
-            'year' => $request->get('year'),
+            'month' => $month,
+            'year' => $year,
         ];
 
         $data = $this->usecase->getAll($filters);
@@ -41,8 +54,8 @@ class LogBookController extends Controller
             'data' => $data,
             'page' => $this->page,
             'keywords' => $request->get('keywords'),
-            'month' => $request->get('month'),
-            'year' => $request->get('year'),
+            'month' => $month,
+            'year' => $year,
             'monthOptions' => LogBookConst::getMonthOptions(),
             'yearOptions' => $this->usecase->getYearOptions(),
         ]);
@@ -159,5 +172,60 @@ class LogBookController extends Controller
                 ->back()
                 ->with('error', $process['message'] ?? ResponseConst::DEFAULT_ERROR_MESSAGE);
         }
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $filters = [
+            'keywords' => $request->get('keywords'),
+            'month' => $request->get('month'),
+            'year' => $request->get('year'),
+        ];
+
+        $process = $this->usecase->getExportData($filters);
+        $data = $process['success'] ? $process['data']['list'] : [];
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setCellValue('A1', 'Tanggal');
+        $sheet->setCellValue('B1', 'Judul');
+        $sheet->setCellValue('C1', 'Deskripsi');
+
+        $row = 2;
+        foreach ($data as $item) {
+            $sheet->setCellValue('A'.$row, $item->log_date ? Carbon::parse($item->log_date)->translatedFormat('d M Y') : '-');
+            $sheet->setCellValue('B'.$row, $item->title);
+            $sheet->setCellValue('C'.$row, $item->description);
+            $row++;
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'logbook-'.date('Ymd-His').'.xlsx';
+
+        // Output to buffer and return as response
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+
+        return response($content)
+            ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $filters = [
+            'keywords' => $request->get('keywords'),
+            'month' => $request->get('month'),
+            'year' => $request->get('year'),
+        ];
+
+        $process = $this->usecase->getExportData($filters);
+        $data = $process['success'] ? $process['data']['list'] : [];
+
+        $pdf = Pdf::loadView('_admin.log-book.pdf', ['data' => $data]);
+
+        return $pdf->download('logbook-'.date('Ymd-His').'.pdf');
     }
 }

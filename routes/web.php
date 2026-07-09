@@ -44,6 +44,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('access_type:1')->prefix('log-book')->name('log_book.')->group(function () {
         Route::get('/', [LogBookController::class, 'index'])->name('index');
         Route::get('/add', [LogBookController::class, 'add'])->name('add');
+        Route::get('/export-excel', [LogBookController::class, 'exportExcel'])->name('export_excel');
+        Route::get('/export-pdf', [LogBookController::class, 'exportPdf'])->name('export_pdf');
         Route::post('/create', [LogBookController::class, 'doCreate'])->name('create');
         Route::get('/detail/{id}', [LogBookController::class, 'detail'])->name('detail');
         Route::get('/update/{id}', [LogBookController::class, 'update'])->name('update');

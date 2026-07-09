@@ -4,10 +4,20 @@
 
 @section('content')
     <x-admin.page-header :title="'Data ' . $page['title']" subtitle="Catatan aktivitas harian">
-        <x-admin.button href="{{ route('admin.log_book.add') }}" class="font-bold">
-            @include('_admin._layout.icons.add')
-            Tambah Data
-        </x-admin.button>
+        <div class="flex gap-2">
+            <x-admin.button href="{{ route('admin.log_book.export_excel', ['keywords' => $keywords, 'month' => $month, 'year' => $year]) }}" color="success" class="font-bold">
+                @include('_admin._layout.icons.excel')
+                Export Excel
+            </x-admin.button>
+            <x-admin.button href="{{ route('admin.log_book.export_pdf', ['keywords' => $keywords, 'month' => $month, 'year' => $year]) }}" color="danger" class="font-bold">
+                @include('_admin._layout.icons.pdf')
+                Export PDF
+            </x-admin.button>
+            <x-admin.button href="{{ route('admin.log_book.add') }}" class="font-bold">
+                @include('_admin._layout.icons.add')
+                Tambah Data
+            </x-admin.button>
+        </div>
     </x-admin.page-header>
 
     <div class="mb-6">
