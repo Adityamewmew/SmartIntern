@@ -50,13 +50,23 @@ class LogBookController extends Controller
             'user_id' => $request->get('user_id'),
         ];
 
-        $data = $this->usecase->getAll($filters);
-        $data = $data['data']['list'] ?? [];
-
         $userOptions = [];
         if (Auth::user()?->access_type == UserConst::SUPERADMIN) {
             $userOptions = $this->usecase->getUsersOptions();
         }
+
+        $isSuperadmin = Auth::user()?->access_type == UserConst::SUPERADMIN;
+        $isCalendarView = empty($filters['keywords'])
+            && ! empty($month)
+            && ! empty($year)
+            && (! $isSuperadmin || ! empty($user_id));
+
+        if ($isCalendarView) {
+            $response = $this->usecase->getCalendarData($filters);
+        } else {
+            $response = $this->usecase->getAll($filters);
+        }
+        $data = $response['data']['list'] ?? [];
 
         return view('_admin.log-book.index', [
             'data' => $data,
@@ -65,16 +75,18 @@ class LogBookController extends Controller
             'month' => $month,
             'year' => $year,
             'user_id' => $request->get('user_id'),
+            'isCalendarView' => $isCalendarView,
             'monthOptions' => LogBookConst::getMonthOptions(),
             'yearOptions' => $this->usecase->getYearOptions(),
             'userOptions' => $userOptions,
         ]);
     }
 
-    public function add(): View|Response
+    public function add(Request $request): View|Response
     {
         return view('_admin.log-book.add', [
             'page' => $this->page,
+            'defaultLogDate' => $request->get('log_date'),
         ]);
     }
 

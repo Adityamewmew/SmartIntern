@@ -7,10 +7,13 @@ use App\Constants\ResponseConst;
 use App\Constants\UserConst;
 use App\Http\Presenter\Response;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -18,9 +21,16 @@ use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\ImageManager;
+use stdClass;
 
 class LogBookUsecase extends Usecase
 {
+    /**
+     * Holiday cache key version. Bump to invalidate every cached month at once
+     * (e.g. after changing API parsing logic) without a full cache:clear.
+     */
+    private const HOLIDAY_CACHE_VERSION = 'v1';
+
     /**
      * Get all daily logs with pagination and filters.
      *
@@ -81,6 +91,150 @@ class LogBookUsecase extends Usecase
 
             return Response::buildErrorService($e->getMessage());
         }
+    }
+
+    /**
+     * Calendar view: every day of the target month, real logs merged with
+     * dummy rows for empty days. Holidays come from external API (cached 30d).
+     *
+     * @param  array{month?: string, year?: string, user_id?: string}  $filterData
+     */
+    public function getCalendarData(array $filterData = []): array
+    {
+        try {
+            $month = (int) ($filterData['month'] ?? date('n'));
+            $year = (int) ($filterData['year'] ?? date('Y'));
+            $isSuperadmin = Auth::user()?->access_type == UserConst::SUPERADMIN;
+            $targetUserId = $isSuperadmin ? ($filterData['user_id'] ?? null) : Auth::user()?->id;
+
+            $query = DB::table(DatabaseConst::DAILY_LOG().' as dl')
+                ->leftJoin(DatabaseConst::USER().' as u', 'dl.user_id', '=', 'u.id')
+                ->select('dl.*', 'u.name as user_name')
+                ->whereNull('dl.deleted_at')
+                ->whereMonth('dl.log_date', $month)
+                ->whereYear('dl.log_date', $year)
+                ->when($targetUserId, function ($query, $userId) {
+                    return $query->where('dl.user_id', $userId);
+                })
+                ->orderBy('dl.log_date', 'asc');
+
+            $byDate = [];
+            $maxLogDate = null;
+            // ponytail: cursor() streams rows 1-at-a-time, month is bounded so memory stays flat
+            foreach ($query->cursor() as $log) {
+                $dateKey = Carbon::parse($log->log_date)->format('Y-m-d');
+                $byDate[$dateKey] = $log;
+                if ($maxLogDate === null || $dateKey > $maxLogDate) {
+                    $maxLogDate = $dateKey;
+                }
+            }
+
+            $holidays = $this->getHolidays($year, $month);
+
+            $today = Carbon::now()->format('Y-m-d');
+
+            $day = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $end = $day->copy()->endOfMonth();
+
+            // --- LOGIKA 1: untuk testing input masa depan
+            //$maxAllowedDate = max(array_filter([$today, $maxLogDate])) ?: $today;
+
+            
+            // --- LOGIKA 2: Real implementation 
+            if ($day->greaterThan(Carbon::today())) {
+                return Response::buildSuccess(['list' => []], ResponseConst::HTTP_SUCCESS);
+            }
+            $maxAllowedDate = $day->isSameMonth(Carbon::today())
+                ? $today
+                : $end->format('Y-m-d');
+            
+
+            $rows = [];
+
+            foreach (CarbonPeriod::create($day, $end) as $currentDate) {
+                $dateKey = $currentDate->format('Y-m-d');
+                $holidayName = $holidays[$dateKey] ?? null;
+                $isWeekend = $currentDate->isWeekend();
+                $isHoliday = $holidayName !== null;
+
+                if (isset($byDate[$dateKey])) {
+                    $row = $byDate[$dateKey];
+                    $row->is_empty = false;
+                    $row->is_weekend = $isWeekend;
+                    $row->is_holiday = $isHoliday;
+                    $row->holiday_name = $holidayName;
+                    $rows[] = $row;
+
+                    continue;
+                }
+
+                // Skip empty days beyond the time horizon so future days don't fill with "Belum Diisi".
+                if ($dateKey > $maxAllowedDate) {
+                    continue;
+                }
+
+                $dummy = new stdClass;
+                $dummy->id = null;
+                $dummy->log_date = $dateKey;
+                $dummy->title = null;
+                $dummy->description = null;
+                $dummy->user_name = null;
+                $dummy->is_empty = true;
+                $dummy->is_weekend = $isWeekend;
+                $dummy->is_holiday = $isHoliday;
+                $dummy->holiday_name = $holidayName;
+                $rows[] = $dummy;
+            }
+
+            return Response::buildSuccess(['list' => $rows], ResponseConst::HTTP_SUCCESS);
+        } catch (Exception $e) {
+            Log::error(
+                message: $e->getMessage(),
+                context: [
+                    'method' => __METHOD__,
+                ]
+            );
+
+            return Response::buildErrorService($e->getMessage());
+        }
+    }
+
+    /**
+     * Fetch national holidays for a month, cached 30 days.
+     * Returns date(Y-m-d) => holiday name. Empty array on any failure.
+     *
+     * @return array<string, string>
+     */
+    protected function getHolidays(int $year, int $month): array
+    {
+        return Cache::remember(
+            'holidays:'.self::HOLIDAY_CACHE_VERSION.":{$year}:{$month}",
+            now()->addDays(30),
+            function () use ($year, $month) {
+                try {
+                    $response = Http::timeout(5)
+                        ->get("https://tanggalmerah.upset.dev/api/holidays?year={$year}&month={$month}");
+
+                    if (! $response->successful()) {
+                        return [];
+                    }
+
+                    $map = [];
+                    foreach ($response->json('data') ?? [] as $item) {
+                        if (is_array($item) && ($item['type'] ?? null) === 'holiday'
+                            && ($item['date'] ?? null) && ($item['name'] ?? null)) {
+                            $map[$item['date']] = $item['name'];
+                        }
+                    }
+
+                    return $map;
+                } catch (Exception $e) {
+                    Log::warning(message: 'Holiday API failed: '.$e->getMessage());
+
+                    return [];
+                }
+            }
+        );
     }
 
     /**
