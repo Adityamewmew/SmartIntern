@@ -28,7 +28,7 @@
                 <div class="space-y-4">
                     {{-- Date --}}
                     <x-admin.input type="text" id="log_date" name="log_date" label="Tanggal" class="datepicker"
-                        placeholder="Pilih tanggal" required autocomplete="off" value="{{ old('log_date') }}"
+                        placeholder="Pilih tanggal" required autocomplete="off" value="{{ old('log_date', $defaultLogDate ?? '') }}"
                         error="{{ $errors->first('log_date') }}" />
 
                     {{-- Title --}}
