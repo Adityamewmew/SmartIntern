@@ -1,5 +1,9 @@
 <?php
 
+use App\Constants\ActivityStatusConst;
+use App\Http\Controllers\Admin\ActivityController;
+use App\Usecase\ActivityFinanceUsecase;
+use App\Usecase\ActivityUsecase;
 use Illuminate\Support\Facades\Route;
 
 test('kegiatan routes are not registered in starter kit', function () {
@@ -9,8 +13,8 @@ test('kegiatan routes are not registered in starter kit', function () {
 });
 
 test('activity domain files are removed from starter kit', function () {
-    expect(class_exists(App\Constants\ActivityStatusConst::class, false))->toBeFalse()
-        ->and(class_exists(App\Http\Controllers\Admin\ActivityController::class, false))->toBeFalse()
-        ->and(class_exists(App\Usecase\ActivityUsecase::class, false))->toBeFalse()
-        ->and(class_exists(App\Usecase\ActivityFinanceUsecase::class, false))->toBeFalse();
+    expect(class_exists(ActivityStatusConst::class, false))->toBeFalse()
+        ->and(class_exists(ActivityController::class, false))->toBeFalse()
+        ->and(class_exists(ActivityUsecase::class, false))->toBeFalse()
+        ->and(class_exists(ActivityFinanceUsecase::class, false))->toBeFalse();
 });

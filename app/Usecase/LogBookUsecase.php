@@ -4,6 +4,7 @@ namespace App\Usecase;
 
 use App\Constants\DatabaseConst;
 use App\Constants\ResponseConst;
+use App\Constants\UserConst;
 use App\Http\Presenter\Response;
 use Carbon\Carbon;
 use Exception;
@@ -28,22 +29,33 @@ class LogBookUsecase extends Usecase
     public function getAll(array $filterData = []): array
     {
         try {
-            $query = DB::table(DatabaseConst::DAILY_LOG())
-                ->whereNull('deleted_at')
+            $query = DB::table(DatabaseConst::DAILY_LOG().' as dl')
+                ->leftJoin(DatabaseConst::USER().' as u', 'dl.user_id', '=', 'u.id')
+                ->select('dl.*', 'u.name as user_name')
+                ->whereNull('dl.deleted_at')
                 ->when($filterData['keywords'] ?? false, function ($query, $keywords) {
                     return $query->where(function ($q) use ($keywords) {
-                        $q->where('title', 'like', '%'.$keywords.'%')
-                            ->orWhere('description', 'like', '%'.$keywords.'%');
+                        $q->where('dl.title', 'like', '%'.$keywords.'%')
+                            ->orWhere('dl.description', 'like', '%'.$keywords.'%');
                     });
                 })
                 ->when($filterData['month'] ?? false, function ($query, $month) {
-                    return $query->whereMonth('log_date', $month);
+                    return $query->whereMonth('dl.log_date', $month);
                 })
                 ->when($filterData['year'] ?? false, function ($query, $year) {
-                    return $query->whereYear('log_date', $year);
-                })
-                ->orderBy('log_date', 'desc')
-                ->orderBy('created_at', 'desc');
+                    return $query->whereYear('dl.log_date', $year);
+                });
+
+            if (Auth::user()?->access_type != UserConst::SUPERADMIN) {
+                $query->where('dl.user_id', Auth::user()?->id);
+            } else {
+                if (! empty($filterData['user_id'])) {
+                    $query->where('dl.user_id', $filterData['user_id']);
+                }
+            }
+
+            $query->orderBy('dl.log_date', 'desc')
+                ->orderBy('dl.created_at', 'desc');
 
             $data = empty($filterData['no_pagination'])
                 ? $query->paginate(20)
@@ -139,10 +151,20 @@ class LogBookUsecase extends Usecase
     public function getByID(int $id): array
     {
         try {
-            $data = DB::table(DatabaseConst::DAILY_LOG())
-                ->whereNull('deleted_at')
-                ->where('id', $id)
+            $data = DB::table(DatabaseConst::DAILY_LOG().' as dl')
+                ->leftJoin(DatabaseConst::USER().' as u', 'dl.user_id', '=', 'u.id')
+                ->select('dl.*', 'u.name as user_name')
+                ->whereNull('dl.deleted_at')
+                ->where('dl.id', $id)
                 ->first();
+
+            if (! $data) {
+                return Response::buildErrorNotFound(ResponseConst::DEFAULT_ERROR_MESSAGE);
+            }
+
+            if (Auth::user()?->access_type != UserConst::SUPERADMIN && $data->user_id != Auth::user()?->id) {
+                return Response::buildErrorNotFound('Anda tidak memiliki akses untuk melihat data ini.');
+            }
 
             $images = DB::table(DatabaseConst::DAILY_LOG_IMAGE())
                 ->where('daily_log_id', $id)
@@ -225,6 +247,14 @@ class LogBookUsecase extends Usecase
 
         DB::beginTransaction();
         try {
+            $log = DB::table(DatabaseConst::DAILY_LOG())->where('id', $id)->whereNull('deleted_at')->first();
+            if (! $log) {
+                return Response::buildErrorNotFound(ResponseConst::DEFAULT_ERROR_MESSAGE);
+            }
+            if ($log->user_id != Auth::user()?->id) {
+                return Response::buildErrorService('Anda tidak memiliki akses untuk mengubah data ini.');
+            }
+
             DB::table(DatabaseConst::DAILY_LOG())
                 ->where('id', $id)
                 ->update([
@@ -260,6 +290,14 @@ class LogBookUsecase extends Usecase
     {
         DB::beginTransaction();
         try {
+            $log = DB::table(DatabaseConst::DAILY_LOG())->where('id', $id)->whereNull('deleted_at')->first();
+            if (! $log) {
+                return Response::buildErrorNotFound(ResponseConst::DEFAULT_ERROR_MESSAGE);
+            }
+            if ($log->user_id != Auth::user()?->id) {
+                return Response::buildErrorService('Anda tidak memiliki akses untuk menghapus data ini.');
+            }
+
             $delete = DB::table(DatabaseConst::DAILY_LOG())
                 ->where('id', $id)
                 ->update([
@@ -349,6 +387,13 @@ class LogBookUsecase extends Usecase
                 return Response::buildErrorNotFound(ResponseConst::DEFAULT_ERROR_MESSAGE);
             }
 
+            $log = DB::table(DatabaseConst::DAILY_LOG())->where('id', $image->daily_log_id)->first();
+            if ($log && $log->user_id != Auth::user()?->id) {
+                DB::rollback();
+
+                return Response::buildErrorService('Anda tidak memiliki akses untuk menghapus data ini.');
+            }
+
             DB::table(DatabaseConst::DAILY_LOG_IMAGE())
                 ->where('id', $id)
                 ->delete();
@@ -373,6 +418,26 @@ class LogBookUsecase extends Usecase
             );
 
             return Response::buildErrorService($e->getMessage());
+        }
+    }
+
+    public function getUsersOptions(): array
+    {
+        try {
+            $users = DB::table(DatabaseConst::USER())
+                ->whereNull('deleted_at')
+                ->select('id', 'name')
+                ->orderBy('name', 'asc')
+                ->get();
+
+            $options = [];
+            foreach ($users as $u) {
+                $options[$u->id] = $u->name;
+            }
+
+            return $options;
+        } catch (Exception $e) {
+            return [];
         }
     }
 }

@@ -41,7 +41,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/change-password', [UserController::class, 'doChangePassword'])->name('do_change_password');
     });
 
-    Route::middleware('access_type:1')->prefix('log-book')->name('log_book.')->group(function () {
+    Route::middleware('access_type:1,2')->prefix('log-book')->name('log_book.')->group(function () {
         Route::get('/', [LogBookController::class, 'index'])->name('index');
         Route::get('/add', [LogBookController::class, 'add'])->name('add');
         Route::get('/export-excel', [LogBookController::class, 'exportExcel'])->name('export_excel');

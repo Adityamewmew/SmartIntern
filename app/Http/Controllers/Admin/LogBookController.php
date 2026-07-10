@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\LogBookConst;
 use App\Constants\ResponseConst;
+use App\Constants\UserConst;
 use App\Http\Controllers\Controller;
 use App\Usecase\LogBookUsecase;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -45,10 +47,16 @@ class LogBookController extends Controller
             'keywords' => $request->get('keywords'),
             'month' => $month,
             'year' => $year,
+            'user_id' => $request->get('user_id'),
         ];
 
         $data = $this->usecase->getAll($filters);
         $data = $data['data']['list'] ?? [];
+
+        $userOptions = [];
+        if (Auth::user()?->access_type == UserConst::SUPERADMIN) {
+            $userOptions = $this->usecase->getUsersOptions();
+        }
 
         return view('_admin.log-book.index', [
             'data' => $data,
@@ -56,8 +64,10 @@ class LogBookController extends Controller
             'keywords' => $request->get('keywords'),
             'month' => $month,
             'year' => $year,
+            'user_id' => $request->get('user_id'),
             'monthOptions' => LogBookConst::getMonthOptions(),
             'yearOptions' => $this->usecase->getYearOptions(),
+            'userOptions' => $userOptions,
         ]);
     }
 
@@ -180,6 +190,7 @@ class LogBookController extends Controller
             'keywords' => $request->get('keywords'),
             'month' => $request->get('month'),
             'year' => $request->get('year'),
+            'user_id' => $request->get('user_id'),
         ];
 
         $process = $this->usecase->getExportData($filters);
@@ -189,14 +200,16 @@ class LogBookController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
 
         $sheet->setCellValue('A1', 'Tanggal');
-        $sheet->setCellValue('B1', 'Judul');
-        $sheet->setCellValue('C1', 'Deskripsi');
+        $sheet->setCellValue('B1', 'Pembuat');
+        $sheet->setCellValue('C1', 'Judul');
+        $sheet->setCellValue('D1', 'Deskripsi');
 
         $row = 2;
         foreach ($data as $item) {
             $sheet->setCellValue('A'.$row, $item->log_date ? Carbon::parse($item->log_date)->translatedFormat('d M Y') : '-');
-            $sheet->setCellValue('B'.$row, $item->title);
-            $sheet->setCellValue('C'.$row, $item->description);
+            $sheet->setCellValue('B'.$row, $item->user_name ?? '-');
+            $sheet->setCellValue('C'.$row, $item->title);
+            $sheet->setCellValue('D'.$row, $item->description);
             $row++;
         }
 
@@ -219,6 +232,7 @@ class LogBookController extends Controller
             'keywords' => $request->get('keywords'),
             'month' => $request->get('month'),
             'year' => $request->get('year'),
+            'user_id' => $request->get('user_id'),
         ];
 
         $process = $this->usecase->getExportData($filters);

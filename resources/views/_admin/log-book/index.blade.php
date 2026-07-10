@@ -5,11 +5,11 @@
 @section('content')
     <x-admin.page-header :title="'Data ' . $page['title']" subtitle="Catatan aktivitas harian">
         <div class="flex gap-2">
-            <x-admin.button href="{{ route('admin.log_book.export_excel', ['keywords' => $keywords, 'month' => $month, 'year' => $year]) }}" color="success" class="font-bold">
+            <x-admin.button href="{{ route('admin.log_book.export_excel', ['keywords' => $keywords, 'month' => $month, 'year' => $year, 'user_id' => $user_id ?? '']) }}" color="success" class="font-bold">
                 @include('_admin._layout.icons.excel')
                 Export Excel
             </x-admin.button>
-            <x-admin.button href="{{ route('admin.log_book.export_pdf', ['keywords' => $keywords, 'month' => $month, 'year' => $year]) }}" color="danger" class="font-bold">
+            <x-admin.button href="{{ route('admin.log_book.export_pdf', ['keywords' => $keywords, 'month' => $month, 'year' => $year, 'user_id' => $user_id ?? '']) }}" color="danger" class="font-bold">
                 @include('_admin._layout.icons.pdf')
                 Export PDF
             </x-admin.button>
@@ -32,12 +32,17 @@
             <div class="w-full sm:w-48">
                 <x-admin.select :label="null" name="year" :options="$yearOptions" :value="$year ?? ''" size="sm" class="cursor-pointer" placeholder="Semua Tahun" />
             </div>
+            @if(\Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN)
+            <div class="w-full sm:w-48">
+                <x-admin.select :label="null" name="user_id" :options="$userOptions" :value="$user_id ?? ''" size="sm" class="cursor-pointer" placeholder="Semua Anggota" />
+            </div>
+            @endif
             <div class="flex items-center gap-2">
                 <x-admin.button type="submit" size="sm" color="primary">
                     @include('_admin._layout.icons.search')
                     Cari
                 </x-admin.button>
-                @if (!empty($keywords) || !empty($month) || !empty($year))
+                @if (!empty($keywords) || !empty($month) || !empty($year) || !empty($user_id))
                     <x-admin.button href="{{ route('admin.log_book.index') }}" size="sm" color="outline-secondary">
                         @include('_admin._layout.icons.reset')
                         Reset
@@ -52,8 +57,10 @@
             <x-admin.table.thead>
                 <tr>
                     <x-admin.table.th>Tanggal</x-admin.table.th>
-                    <x-admin.table.th>Judul</x-admin.table.th>
-                    <x-admin.table.th>Deskripsi</x-admin.table.th>
+                    @if(\Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN)
+                        <x-admin.table.th>Pembuat</x-admin.table.th>
+                    @endif
+                    <x-admin.table.th>Judul / Deskripsi</x-admin.table.th>
                     <x-admin.table.th align="end"></x-admin.table.th>
                 </tr>
             </x-admin.table.thead>
@@ -65,13 +72,18 @@
                                 {{ $d->log_date ? \Carbon\Carbon::parse($d->log_date)->translatedFormat('d M Y') : '-' }}
                             </span>
                         </x-admin.table.td>
+                        @if(\Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN)
                         <x-admin.table.td>
-                            <span class="text-sm font-semibold text-gray-800 dark:text-neutral-200">{{ $d->title }}</span>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-neutral-200">{{ $d->user_name ?? '-' }}</span>
                         </x-admin.table.td>
+                        @endif
                         <x-admin.table.td>
-                            <span class="text-sm text-gray-500 dark:text-neutral-400 line-clamp-1">
-                                {{ $d->description ? \Illuminate\Support\Str::limit($d->description, 60) : '-' }}
-                            </span>
+                            <div class="flex flex-col gap-1">
+                                <span class="text-sm font-semibold text-gray-800 dark:text-neutral-200">{{ $d->title }}</span>
+                                <span class="text-xs text-gray-500 dark:text-neutral-400 line-clamp-2">
+                                    {{ $d->description ?: '-' }}
+                                </span>
+                            </div>
                         </x-admin.table.td>
                         <x-admin.table.td innerClass="px-6 py-1.5 flex items-center justify-end gap-x-1">
                             <a navigate
@@ -94,14 +106,14 @@
                     </x-admin.table.tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-neutral-500">
+                        <td colspan="{{ \Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN ? 4 : 3 }}" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-neutral-500">
                             <x-admin.empty-state />
                         </td>
                     </tr>
                 @endforelse
             </x-admin.table.tbody>
         </x-admin.table>
-        @if (count($data) > 0 && $data->hasPages())
+        @if (count($data) > 0 && method_exists($data, 'hasPages') && $data->hasPages())
             <div class="px-6 py-4 border-t border-gray-200 dark:border-neutral-700">
                 <div class="flex justify-end">
                     {{ $data->links() }}
