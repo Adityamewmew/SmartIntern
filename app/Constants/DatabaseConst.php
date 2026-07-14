@@ -40,4 +40,9 @@ class DatabaseConst
     {
         return config('database.connections.mysql.database', 'default');
     }
+
+    public static function HOLIDAY(): string
+    {
+        return self::DB_CORE().'.holidays';
+    }
 }

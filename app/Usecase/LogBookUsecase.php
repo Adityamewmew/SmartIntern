@@ -11,9 +11,7 @@ use Carbon\CarbonPeriod;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -25,11 +23,6 @@ use stdClass;
 
 class LogBookUsecase extends Usecase
 {
-    /**
-     * Holiday cache key version. Bump to invalidate every cached month at once
-     * (e.g. after changing API parsing logic) without a full cache:clear.
-     */
-    private const HOLIDAY_CACHE_VERSION = 'v1';
 
     /**
      * Get all daily logs with pagination and filters.
@@ -207,34 +200,25 @@ class LogBookUsecase extends Usecase
      */
     protected function getHolidays(int $year, int $month): array
     {
-        return Cache::remember(
-            'holidays:'.self::HOLIDAY_CACHE_VERSION.":{$year}:{$month}",
-            now()->addDays(30),
-            function () use ($year, $month) {
-                try {
-                    $response = Http::timeout(5)
-                        ->get("https://tanggalmerah.upset.dev/api/holidays?year={$year}&month={$month}");
+        try {
+            $holidays = DB::table(DatabaseConst::HOLIDAY())
+                ->whereNull('deleted_at')
+                ->whereYear('holiday_date', $year)
+                ->whereMonth('holiday_date', $month)
+                ->get();
 
-                    if (! $response->successful()) {
-                        return [];
-                    }
-
-                    $map = [];
-                    foreach ($response->json('data') ?? [] as $item) {
-                        if (is_array($item) && ($item['type'] ?? null) === 'holiday'
-                            && ($item['date'] ?? null) && ($item['name'] ?? null)) {
-                            $map[$item['date']] = $item['name'];
-                        }
-                    }
-
-                    return $map;
-                } catch (Exception $e) {
-                    Log::warning(message: 'Holiday API failed: '.$e->getMessage());
-
-                    return [];
-                }
+            $map = [];
+            foreach ($holidays as $item) {
+                $dateKey = Carbon::parse($item->holiday_date)->format('Y-m-d');
+                $map[$dateKey] = $item->holiday_name;
             }
-        );
+
+            return $map;
+        } catch (Exception $e) {
+            Log::warning(message: 'Holiday DB query failed: '.$e->getMessage());
+
+            return [];
+        }
     }
 
     /**
