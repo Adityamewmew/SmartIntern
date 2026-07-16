@@ -193,3 +193,19 @@ export const dailyLogImagesTable = mysqlTable('daily_log_images', {
 }, (t) => [
     index('daily_log_images_daily_log_id_index').on(t.daily_log_id),
 ]);
+
+export const holidaysTable = mysqlTable('holidays', {
+    id: bigint({ mode: 'number', unsigned: true }).autoincrement().primaryKey(),
+    holiday_date: date().notNull(),
+    holiday_name: varchar({ length: 255 }).notNull(),
+    is_national_holiday: tinyint().notNull().default(1),
+    created_by: bigint({ mode: 'number', unsigned: true }),
+    updated_by: bigint({ mode: 'number', unsigned: true }),
+    deleted_by: bigint({ mode: 'number', unsigned: true }),
+    created_at: timestamp(),
+    updated_at: timestamp(),
+    deleted_at: timestamp(),
+}, (t) => [
+    index('holidays_holiday_date_index').on(t.holiday_date),
+]);
+

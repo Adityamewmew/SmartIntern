@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Usecase\LogBookUsecase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 // App schema is MySQL-only (cross-schema prefix suara.*); sqlite memory used by
@@ -208,4 +209,49 @@ test('update log book with new images appends image rows', function () {
         ->assertRedirect(route('admin.log_book.index'));
 
     expect(DB::table(DatabaseConst::DAILY_LOG_IMAGE())->count())->toBe($beforeCount + 1);
+});
+
+test('calendar view for anggota fills empty weekdays with dummy rows and holiday badge', function () {
+    Http::fake([
+        'tanggalmerah.upset.dev/*' => Http::response([
+            'success' => true,
+            'data' => [
+                ['date' => '2026-01-01', 'name' => 'Tahun Baru', 'type' => 'holiday'],
+                ['date' => '2026-01-05', 'name' => 'Cuti Bersama Palsu', 'type' => 'leave'],
+            ],
+            'meta' => [],
+        ], 200),
+    ]);
+
+    $user = User::factory()->create(['access_type' => UserConst::ANGGOTA]);
+
+    DB::table(DatabaseConst::DAILY_LOG())->insert([
+        'user_id' => $user->id,
+        'log_date' => '2026-01-15',
+        'title' => 'Log Kerja Januari',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('admin.log_book.index', ['month' => 1, 'year' => 2026]))
+        ->assertOk()
+        ->assertSee('Log Kerja Januari')
+        ->assertSee('Belum Diisi')
+        ->assertSee('Hari Libur Nasional: Tahun Baru')
+        ->assertDontSee('Cuti Bersama Palsu')
+        ->assertSee('Isi Logbook');
+});
+
+test('calendar view renders even when holiday api is unreachable', function () {
+    Http::fake([
+        'tanggalmerah.upset.dev/*' => Http::response('', 500),
+    ]);
+
+    $user = User::factory()->create(['access_type' => UserConst::ANGGOTA]);
+
+    $this->actingAs($user)
+        ->get(route('admin.log_book.index', ['month' => 1, 'year' => 2026]))
+        ->assertOk()
+        ->assertSee('Belum Diisi');
 });
