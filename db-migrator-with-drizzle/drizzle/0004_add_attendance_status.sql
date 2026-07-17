@@ -1,0 +1,2 @@
+ALTER TABLE `daily_logs` MODIFY COLUMN `status` varchar(50) NOT NULL DEFAULT 'menunggu_review';--> statement-breakpoint
+ALTER TABLE `daily_logs` ADD `attendance_status` varchar(50) DEFAULT 'masuk' NOT NULL;

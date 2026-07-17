@@ -23,7 +23,6 @@ use stdClass;
 
 class LogBookUsecase extends Usecase
 {
-
     /**
      * Get all daily logs with pagination and filters.
      *
@@ -130,17 +129,15 @@ class LogBookUsecase extends Usecase
             $end = $day->copy()->endOfMonth();
 
             // --- LOGIKA 1: untuk testing input masa depan
-            //$maxAllowedDate = max(array_filter([$today, $maxLogDate])) ?: $today;
+            // $maxAllowedDate = max(array_filter([$today, $maxLogDate])) ?: $today;
 
-            
-            // --- LOGIKA 2: Real implementation 
+            // --- LOGIKA 2: Real implementation
             if ($day->greaterThan(Carbon::today())) {
                 return Response::buildSuccess(['list' => []], ResponseConst::HTTP_SUCCESS);
             }
             $maxAllowedDate = $day->isSameMonth(Carbon::today())
                 ? $today
                 : $end->format('Y-m-d');
-            
 
             $rows = [];
 
@@ -178,6 +175,23 @@ class LogBookUsecase extends Usecase
                 $dummy->holiday_name = $holidayName;
                 $rows[] = $dummy;
             }
+
+            if (isset($filterData['filter_status'])) {
+                $statusFilter = $filterData['filter_status'];
+                $rows = array_filter($rows, function ($row) use ($statusFilter) {
+                    if ($statusFilter === 'empty') {
+                        return $row->is_empty === true && $row->is_holiday === false && $row->is_weekend === false;
+                    }
+                    if ($statusFilter === 'holiday') {
+                        return $row->is_holiday === true || $row->is_weekend === true;
+                    }
+
+                    return true;
+                });
+                $rows = array_values($rows);
+            }
+
+            $rows = array_reverse($rows);
 
             return Response::buildSuccess(['list' => $rows], ResponseConst::HTTP_SUCCESS);
         } catch (Exception $e) {
@@ -227,24 +241,30 @@ class LogBookUsecase extends Usecase
     public function getExportData(array $filterData = []): array
     {
         try {
-            $filterData['no_pagination'] = true;
-            $logsResponse = $this->getAll($filterData);
+            $logsResponse = $this->getCalendarData($filterData);
 
             if (! $logsResponse['success']) {
                 return $logsResponse;
             }
 
             $logs = $logsResponse['data']['list'];
-            $logIds = collect($logs)->pluck('id')->toArray();
+            $logIds = collect($logs)->pluck('id')->filter()->toArray();
 
-            $images = DB::table(DatabaseConst::DAILY_LOG_IMAGE())
-                ->whereIn('daily_log_id', $logIds)
-                ->orderBy('sort_order')
-                ->get()
-                ->groupBy('daily_log_id');
+            $images = collect([]);
+            if (count($logIds) > 0) {
+                $images = DB::table(DatabaseConst::DAILY_LOG_IMAGE())
+                    ->whereIn('daily_log_id', $logIds)
+                    ->orderBy('sort_order')
+                    ->get()
+                    ->groupBy('daily_log_id');
+            }
 
             foreach ($logs as $log) {
-                $log->images = $images->get($log->id) ?? collect([]);
+                if (! empty($log->id)) {
+                    $log->images = $images->get($log->id) ?? collect([]);
+                } else {
+                    $log->images = collect([]);
+                }
             }
 
             return Response::buildSuccess(['list' => $logs]);
@@ -331,6 +351,7 @@ class LogBookUsecase extends Usecase
     {
         $validator = Validator::make($data->all(), [
             'log_date' => 'required|date',
+            'attendance_status' => 'required|in:masuk,izin,izin_sakit',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'images' => 'nullable|array|max:10',
@@ -345,6 +366,7 @@ class LogBookUsecase extends Usecase
                 ->insertGetId([
                     'user_id' => Auth::user()?->id,
                     'log_date' => $data['log_date'],
+                    'attendance_status' => $data['attendance_status'],
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
                     'created_by' => Auth::user()?->id,
@@ -375,6 +397,7 @@ class LogBookUsecase extends Usecase
     {
         $validator = Validator::make($data->all(), [
             'log_date' => 'required|date',
+            'attendance_status' => 'required|in:masuk,izin,izin_sakit',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'images' => 'nullable|array|max:10',
@@ -397,6 +420,7 @@ class LogBookUsecase extends Usecase
                 ->where('id', $id)
                 ->update([
                     'log_date' => $data['log_date'],
+                    'attendance_status' => $data['attendance_status'],
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
                     'updated_by' => Auth::user()?->id,
@@ -409,6 +433,45 @@ class LogBookUsecase extends Usecase
 
             return Response::buildSuccess(
                 message: ResponseConst::SUCCESS_MESSAGE_UPDATED
+            );
+        } catch (Exception $e) {
+            DB::rollback();
+
+            Log::error(
+                message: $e->getMessage(),
+                context: [
+                    'method' => __METHOD__,
+                ]
+            );
+
+            return Response::buildErrorService($e->getMessage());
+        }
+    }
+
+    public function approve(int $id): array
+    {
+        DB::beginTransaction();
+        try {
+            $log = DB::table(DatabaseConst::DAILY_LOG())->where('id', $id)->whereNull('deleted_at')->first();
+            if (! $log) {
+                return Response::buildErrorNotFound(ResponseConst::DEFAULT_ERROR_MESSAGE);
+            }
+            if (Auth::user()?->access_type != UserConst::SUPERADMIN) {
+                return Response::buildErrorService('Anda tidak memiliki akses untuk menyetujui logbook.');
+            }
+
+            DB::table(DatabaseConst::DAILY_LOG())
+                ->where('id', $id)
+                ->update([
+                    'status' => 'sudah_direview',
+                    'updated_by' => Auth::user()?->id,
+                    'updated_at' => now(),
+                ]);
+
+            DB::commit();
+
+            return Response::buildSuccess(
+                message: 'Logbook berhasil disetujui.'
             );
         } catch (Exception $e) {
             DB::rollback();

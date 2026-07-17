@@ -13,10 +13,12 @@
                 @include('_admin._layout.icons.pdf')
                 Export PDF
             </x-admin.button>
+            @if(\Illuminate\Support\Facades\Auth::user()?->access_type != \App\Constants\UserConst::SUPERADMIN)
             <x-admin.button href="{{ route('admin.log_book.add') }}" class="font-bold">
                 @include('_admin._layout.icons.add')
                 Tambah Data
             </x-admin.button>
+            @endif
         </div>
     </x-admin.page-header>
 
@@ -31,6 +33,9 @@
             </div>
             <div class="w-full sm:w-48">
                 <x-admin.select :label="null" name="year" :options="$yearOptions" :value="$year ?? ''" size="sm" class="cursor-pointer" placeholder="Semua Tahun" />
+            </div>
+            <div class="w-full sm:w-48">
+                <x-admin.select :label="null" name="filter_status" :options="['' => 'Semua', 'empty' => 'Belum Diisi', 'holiday' => 'Hari Libur']" :value="request('filter_status')" size="sm" class="cursor-pointer" placeholder="Filter Status" />
             </div>
             @if(\Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN)
             <div class="w-full sm:w-48">
@@ -56,12 +61,14 @@
         <x-admin.table>
             <x-admin.table.thead>
                 <tr>
-                    <x-admin.table.th>Tanggal</x-admin.table.th>
+                    <x-admin.table.th class="w-px whitespace-nowrap">Tanggal</x-admin.table.th>
                     @if(\Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN)
-                        <x-admin.table.th>Pembuat</x-admin.table.th>
+                        <x-admin.table.th class="w-px whitespace-nowrap">Pembuat</x-admin.table.th>
                     @endif
-                    <x-admin.table.th>Judul / Deskripsi</x-admin.table.th>
-                    <x-admin.table.th align="end"></x-admin.table.th>
+                    <x-admin.table.th>Judul</x-admin.table.th>
+                    <x-admin.table.th class="w-px whitespace-nowrap">Kehadiran</x-admin.table.th>
+                    <x-admin.table.th class="w-px whitespace-nowrap">Status</x-admin.table.th>
+                    <x-admin.table.th align="end" class="w-px whitespace-nowrap"></x-admin.table.th>
                 </tr>
             </x-admin.table.thead>
             <x-admin.table.tbody>
@@ -75,12 +82,14 @@
                         $rowClass = '';
                         if ($isHoliday || $isWeekend) {
                             $rowClass = 'bg-red-50 dark:bg-red-900/20';
+                        } elseif ($isEmpty) {
+                            $rowClass = 'bg-yellow-50 dark:bg-yellow-900/20';
                         }
                     @endphp
                     <x-admin.table.tr class="{{ $rowClass }}">
                         <x-admin.table.td>
                             <span class="text-sm font-medium {{ $isHoliday || $isWeekend ? 'text-red-800 dark:text-red-200' : 'text-gray-800 dark:text-neutral-200' }}">
-                                {{ $d->log_date ? \Carbon\Carbon::parse($d->log_date)->translatedFormat('d M Y') : '-' }}
+                                {{ $d->log_date ? \Carbon\Carbon::parse($d->log_date)->translatedFormat('l, d M Y') : '-' }}
                             </span>
                         </x-admin.table.td>
                         @if(\Illuminate\Support\Facades\Auth::user()?->access_type == \App\Constants\UserConst::SUPERADMIN)
@@ -88,7 +97,7 @@
                             <span class="text-sm font-semibold text-gray-800 dark:text-neutral-200">{{ $d->user_name ?? '-' }}</span>
                         </x-admin.table.td>
                         @endif
-                        <x-admin.table.td>
+                        <x-admin.table.td class="!whitespace-normal min-w-[16rem]">
                             <div class="flex flex-col gap-1">
                                 @if ($isEmpty)
                                     @if ($isHoliday)
@@ -100,11 +109,18 @@
                                     @endif
                                 @else
                                     <span class="text-sm font-semibold text-gray-800 dark:text-neutral-200">{{ $d->title }}</span>
-                                    <span class="text-xs text-gray-500 dark:text-neutral-400 line-clamp-2">
-                                        {{ $d->description ?: '-' }}
-                                    </span>
                                 @endif
                             </div>
+                        </x-admin.table.td>
+                        <x-admin.table.td>
+                            @if (!$isEmpty)
+                                <x-admin.logbook.badge-attendance :status="$d->attendance_status ?? null" />
+                            @endif
+                        </x-admin.table.td>
+                        <x-admin.table.td>
+                            @if (!$isEmpty)
+                                <x-admin.logbook.badge-status :status="$d->status ?? null" />
+                            @endif
                         </x-admin.table.td>
                         <x-admin.table.td innerClass="px-6 py-1.5 flex items-center justify-end gap-x-1">
                             @if ($isEmpty)
@@ -116,6 +132,9 @@
                                     </a>
                                 @endif
                             @else
+                                @if ($isSuperadminView && isset($d->status) && $d->status !== 'sudah_direview')
+                                    <x-admin.logbook.btn-approve :id="$d->id" />
+                                @endif
                                 <a navigate
                                     class="inline-flex items-center justify-center size-8 text-sm font-semibold rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:hover:bg-neutral-700"
                                     href="{{ route('admin.log_book.detail', $d->id) }}" title="View">
