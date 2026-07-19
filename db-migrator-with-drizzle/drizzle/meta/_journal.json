@@ -29,6 +29,13 @@
       "when": 1784008072301,
       "tag": "0003_add_holidays_table",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1784269590242,
+      "tag": "0004_add_attendance_status",
+      "breakpoints": true
     }
   ]
 }

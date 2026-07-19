@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class LogBookController extends Controller
@@ -48,6 +49,7 @@ class LogBookController extends Controller
             'month' => $month,
             'year' => $year,
             'user_id' => $request->get('user_id'),
+            'filter_status' => $request->get('filter_status'),
         ];
 
         $userOptions = [];
@@ -181,6 +183,21 @@ class LogBookController extends Controller
         }
     }
 
+    public function approve(int $id): RedirectResponse
+    {
+        $process = $this->usecase->approve(id: $id);
+
+        if ($process['success']) {
+            return redirect()
+                ->back()
+                ->with('success', $process['message']);
+        } else {
+            return redirect()
+                ->back()
+                ->with('error', $process['message'] ?? ResponseConst::DEFAULT_ERROR_MESSAGE);
+        }
+    }
+
     public function deleteImage(int $imageId): RedirectResponse
     {
         $process = $this->usecase->deleteImage(id: $imageId);
@@ -213,15 +230,53 @@ class LogBookController extends Controller
 
         $sheet->setCellValue('A1', 'Tanggal');
         $sheet->setCellValue('B1', 'Pembuat');
-        $sheet->setCellValue('C1', 'Judul');
-        $sheet->setCellValue('D1', 'Deskripsi');
+        $sheet->setCellValue('C1', 'Kehadiran');
+        $sheet->setCellValue('D1', 'Judul');
+        $sheet->setCellValue('E1', 'Deskripsi');
 
         $row = 2;
         foreach ($data as $item) {
+            $isHoliday = $item->is_holiday ?? false;
+            $isWeekend = $item->is_weekend ?? false;
+            $isEmpty = $item->is_empty ?? false;
+
             $sheet->setCellValue('A'.$row, $item->log_date ? Carbon::parse($item->log_date)->translatedFormat('d M Y') : '-');
             $sheet->setCellValue('B'.$row, $item->user_name ?? '-');
-            $sheet->setCellValue('C'.$row, $item->title);
-            $sheet->setCellValue('D'.$row, $item->description);
+
+            if ($isEmpty) {
+                $sheet->setCellValue('C'.$row, '-');
+                if ($isHoliday) {
+                    $sheet->setCellValue('D'.$row, 'Libur Nasional: '.$item->holiday_name);
+                } elseif ($isWeekend) {
+                    $sheet->setCellValue('D'.$row, 'Libur Akhir Pekan');
+                } else {
+                    $sheet->setCellValue('D'.$row, 'Belum Diisi');
+                }
+                $sheet->setCellValue('E'.$row, '-');
+            } else {
+                $attendanceStr = '-';
+                if (isset($item->attendance_status)) {
+                    if ($item->attendance_status === 'masuk') $attendanceStr = 'Masuk';
+                    elseif ($item->attendance_status === 'izin') $attendanceStr = 'Izin';
+                    elseif ($item->attendance_status === 'izin_sakit') $attendanceStr = 'Izin Sakit';
+                }
+                $sheet->setCellValue('C'.$row, $attendanceStr);
+                $sheet->setCellValue('D'.$row, $item->title);
+                $sheet->setCellValue('E'.$row, $item->description);
+            }
+
+            // Apply red color for weekends/holidays
+            if ($isHoliday || $isWeekend) {
+                $sheet->getStyle('A'.$row.':E'.$row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFEE2E2');
+                if ($isHoliday) {
+                    $sheet->getStyle('D'.$row)->getFont()->getColor()->setARGB('FFEF4444');
+                    $sheet->getStyle('D'.$row)->getFont()->setBold(true);
+                } elseif ($isWeekend) {
+                    $sheet->getStyle('D'.$row)->getFont()->getColor()->setARGB('FFEF4444');
+                    $sheet->getStyle('D'.$row)->getFont()->setBold(true);
+                }
+            }
+
             $row++;
         }
 

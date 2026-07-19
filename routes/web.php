@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\LogBookController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
@@ -41,6 +42,15 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/change-password', [UserController::class, 'doChangePassword'])->name('do_change_password');
     });
 
+    Route::middleware('access_type:1')->prefix('holidays')->name('holidays.')->group(function () {
+        Route::get('/', [HolidayController::class, 'index'])->name('index');
+        Route::get('/add', [HolidayController::class, 'add'])->name('add');
+        Route::post('/create', [HolidayController::class, 'doCreate'])->name('create');
+        Route::get('/update/{id}', [HolidayController::class, 'update'])->name('update');
+        Route::post('/update/{id}', [HolidayController::class, 'doUpdate'])->name('doUpdate');
+        Route::delete('/delete/{id}', [HolidayController::class, 'delete'])->name('delete');
+    });
+
     Route::middleware('access_type:1,2')->prefix('log-book')->name('log_book.')->group(function () {
         Route::get('/', [LogBookController::class, 'index'])->name('index');
         Route::get('/add', [LogBookController::class, 'add'])->name('add');
@@ -51,6 +61,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/update/{id}', [LogBookController::class, 'update'])->name('update');
         Route::post('/update/{id}', [LogBookController::class, 'doUpdate'])->name('doUpdate');
         Route::delete('/delete/{id}', [LogBookController::class, 'delete'])->name('delete');
+        Route::post('/approve/{id}', [LogBookController::class, 'approve'])->name('approve');
         Route::delete('/image/{imageId}', [LogBookController::class, 'deleteImage'])->name('delete_image');
     });
 

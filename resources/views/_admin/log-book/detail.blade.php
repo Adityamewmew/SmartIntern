@@ -26,10 +26,15 @@
             <div class="p-6">
                 <div class="mb-6">
                     <h3 class="text-2xl font-bold text-gray-800 dark:text-white">{{ $data->title }}</h3>
-                    <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-neutral-400">
-                        <span>
-                            {{ $data->log_date ? \Carbon\Carbon::parse($data->log_date)->translatedFormat('d F Y') : '-' }}
+                    <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-neutral-400">
+                        <span class="flex items-center gap-x-1.5">
+                            @include('_admin._layout.icons.calendar')
+                            {{ $data->log_date ? \Carbon\Carbon::parse($data->log_date)->translatedFormat('l, d F Y') : '-' }}
                         </span>
+                        
+                        @if (isset($data->attendance_status))
+                            <x-admin.logbook.badge-attendance :status="$data->attendance_status" />
+                        @endif
                     </div>
                 </div>
 
@@ -38,11 +43,13 @@
                         <p class="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide font-semibold mb-2">
                             Deskripsi
                         </p>
-                        <p class="text-sm text-gray-700 dark:text-neutral-200 whitespace-pre-line">{{ $data->description }}</p>
+                        <div class="text-sm text-gray-700 dark:text-neutral-200 prose prose-sm dark:prose-invert max-w-none [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
+                            {!! \Illuminate\Support\Str::markdown($data->description) !!}
+                        </div>
                     </div>
                 @endif
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
                     @if (!empty($data->created_at))
                         <div class="p-4 bg-gray-50 rounded-xl dark:bg-neutral-700/50 border border-gray-100 dark:border-neutral-700">
                             <p class="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide font-semibold mb-1">
@@ -70,7 +77,7 @@
                     @endif
                 </div>
 
-                @if (!empty($images))
+                @if (!empty($images) && count($images) > 0)
                     <div class="mb-6">
                         <p class="text-xs text-gray-500 dark:text-neutral-400 uppercase tracking-wide font-semibold mb-2">
                             Gambar

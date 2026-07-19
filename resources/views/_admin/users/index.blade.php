@@ -46,14 +46,14 @@
             <x-admin.table.thead>
                 <tr>
                     <x-admin.table.th>Nama</x-admin.table.th>
-                    <x-admin.table.th>Hak Akses</x-admin.table.th>
-                    <x-admin.table.th align="end"></x-admin.table.th>
+                    <x-admin.table.th class="w-px whitespace-nowrap">Hak Akses</x-admin.table.th>
+                    <x-admin.table.th align="end" class="w-px whitespace-nowrap"></x-admin.table.th>
                 </tr>
             </x-admin.table.thead>
             <x-admin.table.tbody>
                 @forelse($data as $d)
                     <x-admin.table.tr>
-                        <x-admin.table.td>
+                        <x-admin.table.td class="!whitespace-normal min-w-[12rem]">
                             <div class="flex items-center gap-x-3">
                                 <span
                                     class="inline-flex items-center justify-center size-9.5 rounded-full bg-white border border-gray-300 dark:bg-neutral-800 dark:border-neutral-700">

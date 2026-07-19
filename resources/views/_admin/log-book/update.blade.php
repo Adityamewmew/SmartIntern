@@ -2,6 +2,10 @@
 
 @section('title', 'Edit Log Book')
 
+@push('css')
+    <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+@endpush
+
 @section('content')
     <div class="max-w-5xl">
         <div class="bg-white overflow-hidden shadow-lg rounded-2xl dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700">
@@ -31,6 +35,28 @@
                         value="{{ old('log_date', $data->log_date) }}"
                         placeholder="Pilih tanggal" required autocomplete="off"
                         error="{{ $errors->first('log_date') }}" />
+
+                    {{-- Attendance Status --}}
+                    <div>
+                        <label class="block text-sm font-medium mb-2 dark:text-white">Kehadiran</label>
+                        <div class="flex gap-x-6">
+                            <div class="flex items-center">
+                                <input type="radio" name="attendance_status" id="attendance_masuk" value="masuk" class="shrink-0 mt-0.5 border-gray-200 rounded-full text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800" {{ old('attendance_status', $data->attendance_status ?? 'masuk') === 'masuk' ? 'checked' : '' }}>
+                                <label for="attendance_masuk" class="text-sm text-gray-500 ms-2 dark:text-neutral-400">Masuk</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" name="attendance_status" id="attendance_izin" value="izin" class="shrink-0 mt-0.5 border-gray-200 rounded-full text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800" {{ old('attendance_status', $data->attendance_status ?? 'masuk') === 'izin' ? 'checked' : '' }}>
+                                <label for="attendance_izin" class="text-sm text-gray-500 ms-2 dark:text-neutral-400">Izin</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" name="attendance_status" id="attendance_izin_sakit" value="izin_sakit" class="shrink-0 mt-0.5 border-gray-200 rounded-full text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800" {{ old('attendance_status', $data->attendance_status ?? 'masuk') === 'izin_sakit' ? 'checked' : '' }}>
+                                <label for="attendance_izin_sakit" class="text-sm text-gray-500 ms-2 dark:text-neutral-400">Izin Sakit</label>
+                            </div>
+                        </div>
+                        @error('attendance_status')
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
                     <x-admin.input type="text" id="title" name="title" label="Judul"
                         value="{{ old('title', $data->title) }}"
@@ -144,7 +170,20 @@
         </x-slot:footer>
     </x-admin.modal>
 
+    <!-- EasyMDE -->
+    <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+    <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            new EasyMDE({
+                element: document.getElementById('description'),
+                spellChecker: false,
+                placeholder: "Rincian aktivitas harian...",
+                hideIcons: ["guide", "fullscreen", "side-by-side"]
+            });
+        });
+
         function setDeleteImageData(id) {
             const deleteUrlTemplate = @json(route('admin.log_book.delete_image', ['imageId' => '__IMAGE_ID__']));
             document.getElementById('delete-image-form').action = deleteUrlTemplate.replace('__IMAGE_ID__', id);
@@ -301,3 +340,44 @@
         }
     </script>
 @endsection
+
+@push('scripts')
+    <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+    <script>
+        (function() {
+            function initEasyMDE() {
+                var el = document.getElementById('description');
+                if (el && typeof EasyMDE !== 'undefined') {
+                    // Prevent multiple initializations
+                    if (el.nextElementSibling && el.nextElementSibling.classList.contains('EasyMDEContainer')) {
+                        return;
+                    }
+                    new EasyMDE({
+                        element: el,
+                        spellChecker: false,
+                        placeholder: "Rincian aktivitas harian (mendukung Markdown)...",
+                        toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "image", "|", "preview", "guide"]
+                    });
+                }
+            }
+
+            // Run immediately if loaded
+            if (typeof EasyMDE !== 'undefined') {
+                initEasyMDE();
+            } else {
+                // Check periodically if script was loaded asynchronously
+                var checkInterval = setInterval(function() {
+                    if (typeof EasyMDE !== 'undefined') {
+                        clearInterval(checkInterval);
+                        initEasyMDE();
+                    }
+                }, 100);
+                
+                // Clear interval after 5 seconds just in case
+                setTimeout(function() {
+                    clearInterval(checkInterval);
+                }, 5000);
+            }
+        })();
+    </script>
+@endpush
